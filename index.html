@@ -1,0 +1,4572 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>RoundCut · 赛事集锦快速剪辑</title>
+<style>
+  /* ============== Design Tokens ============== */
+  /* ===== 米白极简色板 =====
+     米白底 + 纯白卡片浮起 + 近黑强调，几乎无彩色。
+     层次靠「留白深浅 + 细边框」建立，不靠颜色：
+       · 页面底 #F7F5F2 米白 → 卡片 #FFFFFF 纯白，靠 1px 边框与极淡阴影区分
+       · 强调色直接用近黑 #1F1D1A，黑底按钮配白字
+     状态色保留低饱和暖调，但比深色主题下加深，以在白底上达标：
+       橄榄绿=保留 / 砖红=删除 / 赭黄=待定
+     注 1：视频与缩略图容器刻意保持纯黑 #000，背景色会干扰画面判读。
+     注 2：视频/缩略图上的半透明遮罩仍是深色 rgba(12,9,8,…)，与主题无关。 */
+  :root{
+    --bg:#F7F5F2;      /* 页面底 - 米白 */
+    --bg-1:#FFFFFF;    /* 顶栏 / 面板 - 纯白浮起 */
+    --bg-2:#FFFFFF;    /* 卡片 */
+    --bg-3:#EFEBE4;    /* 输入框 / 悬停 */
+    --line:#E3DED5;    /* 分隔线 */
+    --line-2:#CFC8BC;  /* 悬停态分隔线 */
+
+    --text:#1F1D1A;    /* 近黑 15.45:1 */
+    --text-2:#55504A;  /* 深灰  7.33:1 */
+    --text-3:#6E675E;  /* 中灰  5.13:1 */
+
+    --accent:#1F1D1A;      /* 近黑 - 极简无彩色强调 */
+    --accent-2:#55504A;
+    --accent-ink:#FFFFFF;  /* 黑底上的白字 */
+
+    --keep:#4F7A3F;                    /* 橄榄绿 */
+    --keep-bg:rgba(79,122,63,.10);
+    --keep-line:rgba(79,122,63,.35);
+    --drop:#A8452E;                    /* 砖红 */
+    --drop-bg:rgba(168,69,46,.10);
+    --drop-line:rgba(168,69,46,.35);
+    --pending:#856318;                 /* 赭黄 */
+    --pending-bg:rgba(133,99,24,.08);
+    --pending-line:rgba(133,99,24,.30);
+
+    --radius:8px;
+    --radius-sm:5px;
+    --shadow:0 2px 12px rgba(31,29,26,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei","Helvetica Neue",Arial,sans-serif;
+    font-size:14px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    overflow-x:hidden;
+  }
+  button{font-family:inherit;font-size:inherit;color:inherit;background:none;border:none;cursor:pointer}
+  input,select{font-family:inherit;font-size:inherit;color:inherit;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius-sm);padding:6px 10px;outline:none}
+  input:focus,select:focus{border-color:var(--accent)}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:5px}
+  ::-webkit-scrollbar-thumb:hover{background:#B8B0A4}
+
+  /* ============== Layout ============== */
+  .app{min-height:100vh;display:flex;flex-direction:column}
+  /* 浏览页：锁定视口，左栏固定、右栏内部滚动。
+     不锁的话整页会滚，视频预览跟着跑出去。 */
+  body.fixed{overflow:hidden}
+  body.fixed .app{height:100vh;overflow:hidden}
+  .topbar{
+    height:46px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;padding:0 14px;gap:12px;
+    background:var(--bg-1);
+    position:sticky;top:0;z-index:50;
+  }
+  .logo{display:flex;align-items:center;gap:8px;font-weight:600;letter-spacing:.3px}
+  .logo-mark{
+    width:28px;height:28px;border-radius:8px;
+    background:linear-gradient(135deg,#1F1D1A,#55504A);
+    display:flex;align-items:center;justify-content:center;
+    color:var(--accent-ink);font-weight:700;font-size:13px;
+  }
+  .topbar .spacer{flex:1}
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:4px 10px;border-radius:999px;font-size:12px;
+    background:var(--bg-3);color:var(--text-2);border:1px solid var(--line);
+  }
+  .pill .dot{width:6px;height:6px;border-radius:50%;background:var(--text-3)}
+  .kbd{
+    display:inline-block;padding:1px 6px;border-radius:4px;
+    border:1px solid var(--line-2);background:var(--bg-2);
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:11px;color:var(--text-2);min-width:18px;text-align:center;
+  }
+
+  /* ============== Buttons ============== */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    padding:8px 14px;border-radius:var(--radius-sm);
+    background:var(--bg-3);border:1px solid var(--line);
+    color:var(--text);font-size:13px;font-weight:500;
+    transition:all .15s ease;
+  }
+  .btn:hover{background:var(--line);border-color:var(--line-2)}
+  .btn-primary{
+    background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600;
+  }
+  .btn-primary:hover{background:#C88F4A;border-color:#C88F4A}
+  .btn-ghost{background:transparent;border:1px solid transparent}
+  .btn-ghost:hover{background:var(--bg-2);border-color:var(--line)}
+  .btn-danger{background:var(--drop-bg);border-color:var(--drop-line);color:#DD917A}
+  .btn-danger:hover{background:rgba(168,69,46,.18)}
+  .btn-keep{background:var(--keep-bg);border-color:var(--keep-line);color:#A8BE8E}
+  .btn-keep:hover{background:rgba(79,122,63,.18)}
+  .btn-sm{padding:4px 8px;font-size:12px}
+  .btn-icon{
+    width:32px;height:32px;padding:0;
+    display:inline-flex;align-items:center;justify-content:center;
+  }
+  .btn:disabled,.btn[disabled]{opacity:0.4;cursor:not-allowed;pointer-events:none}
+
+  /* ============== Upload ============== */
+  .upload-page{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:44px 20px;
+  }
+  .upload-hero{
+    text-align:center;margin-bottom:40px;
+  }
+  .upload-hero h1{
+    font-size:32px;font-weight:700;letter-spacing:-.5px;margin-bottom:12px;
+    background:linear-gradient(180deg,#1F1D1A,#55504A);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .upload-hero p{color:var(--text-2);font-size:15px;max-width:520px;margin:0 auto}
+
+  .upload-card{
+    width:100%;max-width:680px;
+    background:var(--bg-1);border:1px dashed var(--line-2);
+    border-radius:14px;padding:32px;transition:all .2s ease;
+  }
+  .upload-card.dragover{
+    border-color:var(--accent);background:rgba(31,29,26,.05);
+  }
+  .upload-drop{
+    text-align:center;padding:32px 20px;cursor:pointer;
+    border-radius:12px;
+  }
+  .upload-icon{
+    width:64px;height:64px;margin:0 auto 20px;
+    background:var(--bg-3);border-radius:16px;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--text-2);
+  }
+  .upload-drop h2{font-size:18px;font-weight:600;margin-bottom:6px}
+  .upload-drop p{color:var(--text-3);font-size:13px}
+  .upload-divider{
+    margin:24px 0;color:var(--text-3);font-size:12px;text-align:center;
+    position:relative;
+  }
+  .upload-divider:before,.upload-divider:after{
+    content:"";position:absolute;top:50%;width:40%;height:1px;background:var(--line);
+  }
+  .upload-divider:before{left:0}
+  .upload-divider:after{right:0}
+
+  .sport-options{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;
+  }
+  .sport-opt{
+    padding:14px 8px;border-radius:var(--radius-sm);
+    background:var(--bg-2);border:1px solid var(--line);
+    cursor:pointer;text-align:center;
+    transition:all .15s ease;
+  }
+  .sport-opt:hover{border-color:var(--line-2);background:var(--bg-3)}
+  .sport-opt.selected{
+    border-color:var(--accent);background:rgba(31,29,26,.1);
+  }
+  .sport-opt .icon{
+    width:28px;height:28px;margin:0 auto 6px;color:var(--text-2);
+  }
+  .sport-opt.selected .icon{color:var(--accent)}
+  .sport-opt .label{font-size:13px;font-weight:500}
+  .sport-opt .hint{font-size:11px;color:var(--text-3);margin-top:2px}
+
+  .upload-form-row{
+    display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;
+  }
+  .form-group label{
+    display:block;font-size:12px;color:var(--text-2);margin-bottom:6px;
+  }
+  .form-group input{
+    width:100%;
+  }
+
+  /* ============== Processing ============== */
+  .processing-page{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:60px 20px;text-align:center;
+  }
+  .processing-spinner{
+    width:80px;height:80px;margin-bottom:24px;
+    border-radius:50%;border:3px solid var(--line);
+    border-top-color:var(--accent);
+    animation:spin 1s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .processing-page h2{font-size:20px;font-weight:600;margin-bottom:8px}
+  .processing-page p{color:var(--text-2);margin-bottom:24px}
+  .processing-bar{
+    width:320px;height:6px;border-radius:3px;
+    background:var(--bg-3);overflow:hidden;
+  }
+  .processing-bar-fill{
+    height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2));
+    width:0%;transition:width .3s ease;
+  }
+  .processing-step{margin-top:14px;font-size:12px;color:var(--text-3);font-family:ui-monospace,monospace}
+
+  /* ============== Browser ============== */
+  .browser{
+    flex:1;display:flex;flex-direction:column;min-height:0;
+  }
+  .browser-toolbar{
+    border-bottom:1px solid var(--line);
+    background:var(--bg-1);padding:8px 14px;
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  }
+  .target-duration{
+    display:flex;align-items:center;gap:8px;
+  }
+  .target-duration .label{font-size:12px;color:var(--text-2)}
+  .target-btn{
+    padding:4px 10px;border-radius:6px;
+    background:var(--bg-2);border:1px solid var(--line);
+    font-size:12px;font-weight:500;color:var(--text-2);
+  }
+  .target-btn.active{
+    background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600;
+  }
+  .target-custom{
+    width:60px;padding:4px 8px;font-size:12px;text-align:center;
+    display:none;
+  }
+  .target-custom.show{display:inline-block}
+
+  .stats-row{
+    display:flex;gap:18px;padding:6px 14px;
+    background:var(--bg-1);border-bottom:1px solid var(--line);
+    align-items:center;flex-wrap:wrap;
+  }
+  .stat-block{display:flex;flex-direction:column;gap:2px}
+  .stat-label{font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px}
+  .stat-value{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+  .stat-value.keep{color:var(--keep)}
+  .stat-value.drop{color:var(--drop)}
+  .stat-value.warn{color:var(--pending)}
+
+  .progress-wrap{
+    flex:1;min-width:200px;max-width:320px;
+  }
+  .progress-bar{
+    height:6px;background:var(--bg-3);border-radius:3px;overflow:hidden;
+    margin-top:6px;
+  }
+  .progress-bar-fill{
+    height:100%;background:var(--keep);border-radius:3px;
+    transition:width .25s ease,background-color .25s ease;
+  }
+  .progress-bar-fill.over{background:var(--pending)}
+  .progress-bar-fill.warn{background:var(--drop)}
+
+  .filter-bar{
+    padding:6px 14px;border-bottom:1px solid var(--line);
+    display:flex;gap:6px;flex-wrap:wrap;background:var(--bg);
+  }
+  .filter-chip{
+    padding:4px 10px;border-radius:999px;
+    background:transparent;border:1px solid var(--line);
+    font-size:12px;color:var(--text-2);cursor:pointer;
+    display:inline-flex;align-items:center;gap:5px;
+  }
+  .filter-chip:hover{border-color:var(--line-2)}
+  .filter-chip.active{background:var(--bg-3);color:var(--text);border-color:var(--text-2)}
+
+  .browser-main{
+    flex:1;display:grid;
+    grid-template-columns:minmax(0,1fr) 360px;
+    min-height:0;overflow:hidden;
+  }
+  @media (max-width:1100px){
+    body.fixed{overflow:auto}
+    body.fixed .app{height:auto;overflow:visible}
+    .browser-main{grid-template-columns:1fr;overflow:visible}
+    .video-panel{
+      position:sticky;top:0;z-index:20;
+      height:44vh;min-height:260px;
+    }
+    .side-panel{border-left:none;border-top:1px solid var(--line);overflow:visible}
+  }
+
+  .video-panel{
+    display:flex;flex-direction:column;
+    background:#000;position:relative;
+    min-height:0;overflow:hidden;
+  }
+  .video-stage{
+    flex:1;min-height:0;position:relative;
+    display:flex;align-items:center;justify-content:center;
+    background:#000;overflow:hidden;
+  }
+  .video-stage video{
+    width:100%;height:100%;object-fit:contain;background:#000;
+    max-height:100%;
+  }
+  .video-overlay{
+    position:absolute;top:16px;left:16px;
+    display:flex;gap:8px;align-items:center;
+    pointer-events:none;
+  }
+  .video-overlay .info-chip{
+    background:rgba(12,9,8,.7);padding:4px 10px;border-radius:6px;
+    font-size:12px;font-variant-numeric:tabular-nums;
+    backdrop-filter:blur(8px);
+    border:1px solid rgba(242,236,228,.1);
+  }
+
+  .video-controls{
+    flex-shrink:0;
+    padding:8px 12px;background:var(--bg-1);
+    border-top:1px solid var(--line);
+    display:flex;flex-direction:column;gap:10px;
+  }
+  .timeline-wrap{
+    position:relative;height:40px;
+    background:var(--bg-2);border-radius:5px;overflow:hidden;
+  }
+  .timeline-track{
+    position:absolute;inset:0;cursor:pointer;
+  }
+  .timeline-buffer{
+    position:absolute;top:0;bottom:0;background:rgba(31,29,26,.12);
+  }
+  .timeline-rally{
+    position:absolute;top:8px;bottom:8px;
+    border-radius:3px;cursor:pointer;
+    background:var(--bg-3);border:1px solid var(--line);
+    transition:all .15s ease;
+    overflow:hidden;
+  }
+  .timeline-rally.keep{background:var(--keep-bg);border-color:var(--keep-line)}
+  .timeline-rally.drop{background:var(--drop-bg);border-color:var(--drop-line);opacity:.4}
+  .timeline-rally.current{border-color:var(--accent);box-shadow:0 0 0 2px rgba(31,29,26,.3)}
+  .timeline-rally:hover{border-color:var(--text-2)}
+  .timeline-core{
+    position:absolute;top:0;bottom:0;
+    background:rgba(31,29,26,.35);
+    border-left:1px solid rgba(31,29,26,.8);
+    border-right:1px solid rgba(31,29,26,.8);
+    pointer-events:none;
+  }
+  .timeline-rally.keep .timeline-core{background:rgba(79,122,63,.30);border-color:rgba(79,122,63,.7)}
+  .timeline-rally.drop .timeline-core{background:rgba(168,69,46,.25);border-color:rgba(168,69,46,.6)}
+  .timeline-rally-label{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:10px;color:var(--text-2);font-weight:600;
+    pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    padding:0 4px;
+  }
+  .timeline-playhead{
+    position:absolute;top:0;bottom:0;width:2px;background:var(--accent);
+    pointer-events:none;z-index:5;
+  }
+  .timeline-playhead:before{
+    content:"";position:absolute;top:-2px;left:-4px;
+    width:10px;height:8px;background:var(--accent);
+    clip-path:polygon(0 0,100% 0,50% 100%);
+  }
+  .timeline-marker{
+    position:absolute;top:0;bottom:0;width:2px;
+    background:rgba(31,29,26,.18);
+    pointer-events:none;
+  }
+  .video-control-row{
+    display:flex;align-items:center;gap:10px;
+  }
+  .video-control-row .time{
+    font-size:12px;color:var(--text-2);font-variant-numeric:tabular-nums;
+    min-width:90px;
+  }
+  .video-control-row .spacer{flex:1}
+  .playback-rate{
+    padding:4px 8px;font-size:12px;
+  }
+
+  .side-panel{
+    border-left:1px solid var(--line);
+    background:var(--bg-1);
+    display:flex;flex-direction:column;
+    min-height:0;overflow:hidden;
+  }
+  .side-header{
+    padding:9px 12px;border-bottom:1px solid var(--line);
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  .side-header h3{font-size:14px;font-weight:600}
+  .side-content{
+    flex:1;overflow-y:auto;padding:8px;min-height:0;
+  }
+  .rally-card{
+    background:var(--bg-2);border:1px solid var(--line);
+    border-radius:var(--radius);padding:6px 7px;margin-bottom:5px;
+    cursor:pointer;transition:all .15s ease;
+    display:grid;grid-template-columns:64px 1fr;gap:8px;
+    position:relative;
+  }
+  .rally-card:hover{border-color:var(--line-2);background:var(--bg-3)}
+  .rally-card.current{
+    border-color:var(--accent);
+    box-shadow:0 0 0 1px var(--accent);
+  }
+  .rally-card.keep{
+    border-left:3px solid var(--keep);
+  }
+  .rally-card.drop{
+    border-left:3px solid var(--drop);opacity:.65;
+  }
+  .rally-thumb{
+    width:64px;height:40px;border-radius:var(--radius-sm);
+    background:#000;position:relative;overflow:hidden;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .rally-thumb img{width:100%;height:100%;object-fit:cover}
+  .rally-thumb .play-overlay{
+    position:absolute;inset:0;background:rgba(12,9,8,.4);
+    display:flex;align-items:center;justify-content:center;
+    color:#FFFFFF;opacity:0;transition:opacity .15s ease;
+  }
+  .rally-card:hover .play-overlay{opacity:1}
+  .rally-info{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .rally-title{
+    display:flex;align-items:center;gap:6px;
+    font-size:13px;font-weight:600;
+  }
+  .rally-title .badge{
+    font-size:10px;padding:1px 6px;border-radius:4px;
+    font-weight:500;
+  }
+  .badge.pending{background:var(--pending-bg);color:var(--pending);border:1px solid var(--pending-line)}
+  .badge.keep{background:var(--keep-bg);color:var(--keep);border:1px solid var(--keep-line)}
+  .badge.drop{background:var(--drop-bg);color:var(--drop);border:1px solid var(--drop-line)}
+  .rally-times{
+    font-size:11px;color:var(--text-3);font-variant-numeric:tabular-nums;
+  }
+  .rally-duration{
+    font-size:12px;color:var(--text-2);font-weight:500;
+  }
+  .rally-actions{
+    position:absolute;top:8px;right:8px;
+    display:flex;gap:4px;opacity:0;transition:opacity .15s ease;
+  }
+  .rally-card:hover .rally-actions,.rally-card.current .rally-actions{opacity:1}
+  .icon-btn{
+    width:24px;height:24px;border-radius:4px;
+    background:rgba(31,29,26,.06);display:inline-flex;
+    align-items:center;justify-content:center;color:var(--text-2);
+    transition:all .15s ease;
+  }
+  .icon-btn:hover{background:rgba(31,29,26,.13);color:var(--text)}
+
+  /* ============== Grid view (overlay) ============== */
+  .grid-view{
+    position:fixed;inset:0;z-index:100;background:var(--bg);
+    display:flex;flex-direction:column;
+  }
+  .grid-view-header{
+    height:56px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;padding:0 20px;gap:16px;
+    background:var(--bg-1);
+  }
+  .grid-view-content{
+    flex:1;overflow-y:auto;padding:14px;
+  }
+  .grid{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(184px,1fr));
+    gap:10px;
+  }
+  .grid-card{
+    background:var(--bg-2);border:1px solid var(--line);
+    border-radius:var(--radius);overflow:hidden;
+    cursor:pointer;transition:all .15s ease;
+    position:relative;
+  }
+  .grid-card:hover{border-color:var(--line-2);transform:translateY(-1px)}
+  .grid-card.keep{border-color:var(--keep)}
+  .grid-card.drop{opacity:.55;border-color:var(--drop-line)}
+  .grid-card.current{
+    border-color:var(--accent);
+    box-shadow:0 0 0 2px rgba(31,29,26,.3);
+  }
+  .grid-thumb{
+    width:100%;aspect-ratio:16/9;background:#000;
+    position:relative;overflow:hidden;
+  }
+  .grid-thumb img{width:100%;height:100%;object-fit:cover}
+  .grid-thumb .play-icon{
+    position:absolute;inset:0;background:rgba(12,9,8,.3);
+    display:flex;align-items:center;justify-content:center;
+    opacity:0;transition:opacity .15s ease;
+  }
+  .grid-card:hover .play-icon{opacity:1}
+  .grid-thumb .num-tag{
+    position:absolute;top:6px;left:6px;
+    background:rgba(12,9,8,.7);padding:2px 8px;border-radius:4px;
+    font-size:11px;font-weight:600;
+    backdrop-filter:blur(4px);
+  }
+  .grid-thumb .status-tag{
+    position:absolute;top:6px;right:6px;
+    padding:2px 6px;border-radius:4px;
+    font-size:10px;font-weight:500;
+  }
+  .grid-thumb .status-tag.keep{background:rgba(79,122,63,.88);color:var(--accent-ink)}
+  .grid-thumb .status-tag.drop{background:rgba(168,69,46,.88);color:var(--accent-ink)}
+  .grid-thumb .status-tag.pending{background:rgba(133,99,24,.90);color:var(--accent-ink)}
+  .grid-meta{padding:8px 10px}
+  .grid-meta-row{
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:12px;color:var(--text-2);
+  }
+  .grid-meta-row .dur{font-variant-numeric:tabular-nums;font-weight:600;color:var(--text)}
+
+  /* ============== Edit modal ============== */
+  .modal-backdrop{
+    position:fixed;inset:0;background:rgba(31,29,26,.30);
+    z-index:200;display:flex;align-items:center;justify-content:center;
+    padding:20px;backdrop-filter:blur(8px);
+  }
+  .modal{
+    background:var(--bg-1);border:1px solid var(--line);
+    border-radius:10px;width:100%;max-width:540px;
+    box-shadow:var(--shadow);overflow:hidden;
+  }
+  .modal-header{
+    padding:12px 16px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .modal-header h3{font-size:15px;font-weight:600}
+  .modal-body{padding:16px}
+  .modal-footer{
+    padding:9px 16px;border-top:1px solid var(--line);
+    display:flex;justify-content:flex-end;gap:8px;
+  }
+  .clip-edit-video{
+    width:100%;aspect-ratio:16/9;background:#000;border-radius:6px;
+    margin-bottom:14px;
+  }
+  .clip-edit-row{
+    display:flex;align-items:center;gap:10px;margin-bottom:10px;
+  }
+  .clip-edit-row label{
+    font-size:12px;color:var(--text-2);min-width:60px;
+  }
+  .clip-edit-row .time-val{
+    font-variant-numeric:tabular-nums;font-size:13px;
+    min-width:80px;font-weight:600;
+  }
+  .clip-edit-row input[type="range"]{
+    flex:1;accent-color:var(--accent);
+  }
+  .quick-adjust{
+    display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;
+  }
+  .quick-adjust-label{
+    width:100%;font-size:11px;color:var(--text-3);
+    margin-bottom:4px;
+  }
+
+  /* ============== Preview / Export ============== */
+  .preview-page{
+    flex:1;display:flex;flex-direction:column;min-height:0;
+  }
+  .preview-stage{
+    flex:1;background:#000;display:flex;align-items:center;justify-content:center;
+    position:relative;
+  }
+  .preview-stage video{
+    width:100%;height:100%;max-height:100%;object-fit:contain;
+  }
+  .preview-info{
+    position:absolute;top:20px;left:20px;right:20px;
+    display:flex;gap:12px;pointer-events:none;
+  }
+  .preview-info .info-chip{
+    background:rgba(12,9,8,.7);padding:6px 12px;border-radius:6px;
+    font-size:12px;font-variant-numeric:tabular-nums;
+    backdrop-filter:blur(8px);
+    border:1px solid rgba(242,236,228,.1);
+  }
+  .preview-controls{
+    padding:14px 20px;background:var(--bg-1);
+    border-top:1px solid var(--line);
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  }
+  .preview-stats{
+    display:flex;gap:20px;flex-wrap:wrap;
+  }
+  .preview-stats .stat-value{font-size:13px}
+
+  /* ============== Toast ============== */
+  .toast-container{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    z-index:300;display:flex;flex-direction:column;gap:8px;align-items:center;
+    pointer-events:none;
+  }
+  .toast{
+    background:var(--bg-3);border:1px solid var(--line-2);
+    padding:10px 16px;border-radius:8px;font-size:13px;
+    box-shadow:var(--shadow);
+    animation:toast-in .2s ease;
+  }
+  @keyframes toast-in{
+    from{opacity:0;transform:translateY(8px)}
+    to{opacity:1;transform:translateY(0)}
+  }
+  .toast.keep{border-color:var(--keep-line);color:#A8BE8E}
+  .toast.drop{border-color:var(--drop-line);color:#DD917A}
+
+  /* ============== Help overlay ============== */
+  /* 快捷键面板：从右上角「快捷键」按钮下方弹出，
+     定位要贴着按钮，否则点了感觉「没反应」 */
+  .help-overlay{
+    position:fixed;top:52px;right:14px;
+    background:var(--bg-1);border:1px solid var(--line);
+    border-radius:var(--radius);padding:12px 14px;
+    font-size:12px;box-shadow:var(--shadow);
+    width:250px;z-index:60;
+  }
+  .help-overlay h4{font-size:12px;margin-bottom:8px;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px}
+  .help-row{display:flex;justify-content:space-between;gap:8px;padding:3px 0;color:var(--text-2)}
+  .help-row .keys{display:flex;gap:3px}
+  .help-note{
+    margin-top:8px;padding-top:8px;border-top:1px solid var(--line);
+    color:var(--text-3);font-size:11px;line-height:1.5;
+  }
+
+  /* ============== Segmented control ============== */
+  .seg-group{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:6px;
+  }
+  .seg{
+    padding:8px 6px;border-radius:var(--radius-sm);
+    background:var(--bg-2);border:1px solid var(--line);
+    font-size:13px;color:var(--text-2);cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:2px;
+    transition:all .15s ease;
+  }
+  .seg:hover{border-color:var(--line-2);background:var(--bg-3)}
+  .seg.active{
+    background:rgba(31,29,26,.12);border-color:var(--accent);color:var(--text);
+  }
+  .seg .seg-sub{font-size:11px;color:var(--text-3)}
+  .seg.active .seg-sub{color:var(--accent)}
+
+  .sensitivity-wrap{display:flex;align-items:center;gap:12px}
+  .sensitivity-wrap input[type="range"]{
+    flex:1;accent-color:var(--accent);background:transparent;border:none;padding:0;
+  }
+  .sens-val{
+    font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;
+    min-width:44px;text-align:right;color:var(--accent);
+  }
+
+  .reanalyze-group{
+    display:flex;align-items:center;gap:8px;
+    padding-right:12px;border-right:1px solid var(--line);
+  }
+  .reanalyze-group .label{font-size:12px;color:var(--text-3)}
+  .reanalyze-group input[type="range"]{
+    width:80px;accent-color:var(--accent);background:transparent;border:none;padding:0;
+  }
+  .reanalyze-group .sens-val{font-size:12px;min-width:36px}
+
+  .mini-seg{
+    display:inline-flex;border:1px solid var(--line);border-radius:5px;overflow:hidden;
+  }
+  .mini-seg .mini{
+    padding:3px 9px;font-size:11px;color:var(--text-2);background:var(--bg-2);
+    border-right:1px solid var(--line);transition:all .15s ease;
+  }
+  .mini-seg .mini:last-child{border-right:none}
+  .mini-seg .mini:hover{background:var(--bg-3)}
+  .mini-seg .mini.active{background:var(--accent);color:var(--accent-ink);font-weight:600}
+
+  /* ============== Motion strength bar ============== */
+  .motion-wrap{
+    display:flex;align-items:center;gap:6px;margin-top:3px;
+  }
+  .motion-track{
+    flex:1;height:3px;border-radius:2px;background:var(--bg-3);overflow:hidden;
+  }
+  .motion-fill{
+    height:100%;border-radius:2px;background:var(--accent-2);
+    transition:width .2s ease;
+  }
+  .motion-label{
+    font-size:10px;color:var(--text-3);font-variant-numeric:tabular-nums;
+    min-width:28px;text-align:right;
+  }
+
+  /* ============== Analysis curve ============== */
+  .analysis-curve{
+    margin-top:8px;background:var(--bg-2);border:1px solid var(--line);
+    border-radius:var(--radius-sm);padding:8px 10px;
+  }
+  .analysis-curve h4{
+    font-size:10px;color:var(--text-3);text-transform:uppercase;
+    letter-spacing:.5px;margin-bottom:6px;
+  }
+  .analysis-curve canvas{width:100%;height:56px;display:block;border-radius:4px}
+
+  /* ============== 最近项目 ============== */
+  .recent-projects{width:100%;max-width:680px;margin-top:28px}
+  .recent-head{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line);
+  }
+  .recent-head h3{font-size:13px;font-weight:600;color:var(--text-2)}
+  .project-list{display:flex;flex-direction:column;gap:6px}
+  .project-item{
+    display:flex;align-items:center;gap:12px;
+    padding:9px 12px;border-radius:var(--radius);
+    background:var(--bg-1);border:1px solid var(--line);
+    cursor:pointer;transition:all .15s ease;
+  }
+  .project-item:hover{border-color:var(--line-2);background:var(--bg-2)}
+  .project-thumb{
+    width:60px;height:38px;border-radius:4px;
+    background:#000;object-fit:cover;flex-shrink:0;
+  }
+  .project-meta{flex:1;min-width:0}
+  .project-name{
+    font-size:13px;font-weight:500;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .project-sub{font-size:11px;color:var(--text-3);margin-top:2px}
+  .project-del{
+    width:26px;height:26px;border-radius:4px;flex-shrink:0;
+    display:inline-flex;align-items:center;justify-content:center;
+    color:var(--text-3);transition:all .15s ease;
+  }
+  .project-del:hover{background:var(--drop-bg);color:var(--drop)}
+  .empty-projects{
+    padding:16px;text-align:center;font-size:12px;color:var(--text-3);
+    border:1px dashed var(--line);border-radius:var(--radius);
+  }
+  .save-status{
+    font-size:11px;color:var(--text-3);
+    font-variant-numeric:tabular-nums;
+  }
+  .save-status.saving{color:var(--accent)}
+
+  /* ============== Export options ============== */
+  .export-option{
+    border:1px solid var(--line);border-radius:var(--radius);
+    padding:12px 14px;margin-bottom:10px;background:var(--bg-2);
+    transition:border-color .15s ease;
+  }
+  .export-option:hover{border-color:var(--line-2)}
+  .export-option-head{
+    display:flex;align-items:center;gap:8px;margin-bottom:4px;
+  }
+  .export-option-title{font-size:13px;font-weight:600}
+  .export-badge{
+    font-size:10px;padding:1px 6px;border-radius:4px;
+    background:var(--bg-3);color:var(--text-2);border:1px solid var(--line);
+  }
+  .export-badge.quick{background:var(--keep-bg);color:var(--keep);border-color:var(--keep-line)}
+  .export-badge.accurate{background:rgba(107,101,92,.12);color:#E0B87C;border-color:rgba(107,101,92,.35)}
+  .export-option-desc{font-size:12px;color:var(--text-2);line-height:1.6}
+  .export-option-desc code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:11px;background:var(--bg);padding:1px 5px;border-radius:3px;
+    border:1px solid var(--line);color:var(--text);
+  }
+
+  /* ============== Utility ============== */
+  .hidden{display:none !important}
+  .flex{display:flex}
+  .text-center{text-align:center}
+  .gap-4{gap:4px}.gap-8{gap:8px}.gap-12{gap:12px}.gap-16{gap:16px}
+  .mt-12{margin-top:12px}.mt-16{margin-top:16px}.mt-24{margin-top:24px}
+  .mb-8{margin-bottom:8px}.mb-12{margin-bottom:12px}.mb-16{margin-bottom:16px}
+
+  /* Compact mode for cards in side panel */
+  .compact .rally-card{
+    grid-template-columns:1fr;
+    padding:8px;
+  }
+  .compact .rally-thumb{display:none}
+  .compact .rally-actions{opacity:1;position:static;margin-top:6px}
+
+  /* Preview while exporting */
+  .export-overlay{
+    position:absolute;inset:0;background:rgba(12,9,8,.85);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:14px;z-index:10;color:#FFFFFF;
+  }
+  .export-overlay h3{font-size:16px;font-weight:600}
+  .export-overlay p{color:var(--text-2);font-size:13px}
+
+  /* Empty state */
+  .empty{
+    padding:40px 20px;text-align:center;color:var(--text-3);
+    font-size:13px;
+  }
+
+  /* Rating star display */
+  .stars{color:var(--pending);font-size:12px;letter-spacing:1px}
+
+  /* Score badge */
+  .score-chip{
+    display:inline-flex;align-items:center;gap:4px;
+    padding:2px 6px;border-radius:4px;
+    background:var(--bg-3);font-size:11px;
+    font-variant-numeric:tabular-nums;color:var(--text-2);
+  }
+  .score-chip .arrow{color:var(--text-3);font-size:10px}
+  .score-chip .delta{color:var(--keep);font-size:10px;font-weight:600}
+
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="logo">
+      <div class="logo-mark">R</div>
+      <span>RoundCut</span>
+    </div>
+    <span class="pill" id="sport-pill" style="display:none">
+      <span class="dot"></span>
+      <span id="sport-pill-label">未选择</span>
+    </span>
+    <span class="pill" id="video-pill" style="display:none">
+      <span class="dot"></span>
+      <span id="video-pill-label">—</span>
+    </span>
+    <div class="spacer"></div>
+    <span class="save-status" id="save-status" style="display:none"></span>
+    <button class="btn btn-ghost" id="btn-restart" style="display:none">重新开始</button>
+    <button class="btn btn-ghost" id="btn-help" title="查看快捷键">⌘ 快捷键</button>
+  </header>
+
+  <!-- Upload Page -->
+  <main class="upload-page" id="upload-page">
+    <div class="upload-hero">
+      <h1>把一场比赛，拆成可挑选的回合</h1>
+      <p>上传完整赛事视频，自动识别每个回合起止。快速浏览 → 保留精彩 → 一键导出 1–2 分钟集锦。</p>
+    </div>
+
+    <div class="upload-card" id="upload-card">
+      <div class="upload-drop" id="upload-drop">
+        <div class="upload-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+        </div>
+        <h2>上传比赛视频</h2>
+        <p>支持 MP4 / MOV / AVI / MKV · 拖拽到此或点击选择</p>
+        <input type="file" id="file-input" accept="video/*" style="display:none" />
+      </div>
+
+      <div class="upload-divider">运动类型</div>
+
+      <div class="sport-options" id="sport-options">
+        <div class="sport-opt" data-sport="tennis">
+          <div class="icon"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></div>
+          <div class="label">网球</div>
+          <div class="hint">约 8–25s/回合</div>
+        </div>
+        <div class="sport-opt" data-sport="badminton">
+          <div class="icon"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2l3 6 6 .5-4.5 4 1.5 6.5-6-3.5L6 19l1.5-6.5L3 8.5 9 8z"/></svg></div>
+          <div class="label">羽毛球</div>
+          <div class="hint">约 5–20s/回合</div>
+        </div>
+        <div class="sport-opt" data-sport="tabletennis">
+          <div class="icon"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><path d="M2 12h20"/></svg></div>
+          <div class="label">乒乓球</div>
+          <div class="hint">约 3–15s/回合</div>
+        </div>
+        <div class="sport-opt" data-sport="other">
+          <div class="icon"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M9 9h.01M15 9h.01M8 15c1 1 2.5 1.5 4 1.5s3-.5 4-1.5"/></svg></div>
+          <div class="label">其他</div>
+          <div class="hint">手动切分</div>
+        </div>
+      </div>
+
+      <div class="upload-form-row">
+        <div class="form-group">
+          <label>回合前缓冲</label>
+          <input type="number" id="pre-buffer" value="2" min="0" max="5" step="0.5" />
+        </div>
+        <div class="form-group">
+          <label>回合后缓冲</label>
+          <input type="number" id="post-buffer" value="3" min="0" max="5" step="0.5" />
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:16px">
+        <label>素材类型 <span style="color:var(--text-3)">— 决定用哪种信号找边界</span></label>
+        <div class="seg-group" id="content-group">
+          <button class="seg active" data-content="compilation">
+            剪辑合集<span class="seg-sub">片段硬切拼接</span>
+          </button>
+          <button class="seg" data-content="match">
+            完整比赛<span class="seg-sub">回合间有安静期</span>
+          </button>
+        </div>
+        <div class="hint" id="content-hint" style="margin-top:6px;font-size:11px;color:var(--text-3);line-height:1.5">
+          合集是别人把片段一个个拼起来的：片段之间通常没有安静期，只有画面和声音的突变。会重点检测硬切点。
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:16px">
+        <label>切分依据</label>
+        <div class="seg-group" id="source-group">
+          <button class="seg active" data-source="fused">
+            声音+画面<span class="seg-sub">推荐 · 多模态</span>
+          </button>
+          <button class="seg" data-source="audio">
+            仅声音<span class="seg-sub">不抽帧，快</span>
+          </button>
+          <button class="seg" data-source="video">
+            仅画面<span class="seg-sub">无声视频用</span>
+          </button>
+        </div>
+        <div class="hint" id="source-hint" style="margin-top:6px;font-size:11px;color:var(--text-3);line-height:1.5">
+          集锦里相邻回合之间本来就是剪辑点：画面会整屏切换，同时音频突然不连续（上一段解说 → 硬切 → 下一段解说）。两条信号融合判断，不依赖静音。
+          注意：导播在同一回合内也会切镜头（全场 → 球员特写 / 慢动作回放），那是段落内部的镜头语言，不会被当成边界——靠「切点之后有没有击球声」区分。
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:16px" id="quality-wrap">
+        <label>画面分析精度 <span style="color:var(--text-3)">— 按 25fps 整数分频采样，越高越准也越慢</span></label>
+        <div class="seg-group" id="quality-group">
+          <button class="seg" data-quality="fast">快速 <span class="seg-sub">每5帧 · 5fps</span></button>
+          <button class="seg active" data-quality="standard">标准 <span class="seg-sub">每2帧 · 12.5fps</span></button>
+          <button class="seg" data-quality="fine">精细 <span class="seg-sub">每帧 · 25fps</span></button>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:16px">
+        <label>切分灵敏度 <span style="color:var(--text-3)">— 越高切得越细（回合更多）</span></label>
+        <div class="sensitivity-wrap">
+          <input type="range" id="sensitivity" min="0.5" max="2" step="0.1" value="0.8" />
+          <span class="sens-val" id="sensitivity-val">0.8×</span>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:16px">
+        <label>画面 / 声音权重 <span style="color:var(--text-3)">— CutScore = 画面×画面变化 + 声音×音频不连续（按比例归一化）</span></label>
+        <div class="sensitivity-wrap">
+          <span style="font-size:11px;color:var(--text-3)">画面</span>
+          <input type="range" id="visual-weight" min="0" max="1" step="0.05" value="0.6" />
+          <span class="sens-val" id="visual-weight-val">0.60</span>
+          <span style="font-size:11px;color:var(--text-3);margin-left:6px">声音</span>
+          <input type="range" id="audio-weight" min="0" max="1" step="0.05" value="0.4" />
+          <span class="sens-val" id="audio-weight-val">0.40</span>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:16px">
+        <label>最短回合时长 <span style="color:var(--text-3)">— 秒。更短的段会被合并，用于过滤镜头运动 / 闪光 / 欢呼 / 慢动作造成的误切</span></label>
+        <div class="sensitivity-wrap">
+          <input type="range" id="min-seg" min="1" max="8" step="0.5" value="2.5" />
+          <span class="sens-val" id="min-seg-val">2.5s</span>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:16px">
+        <label>切点聚类窗口 <span style="color:var(--text-3)">— 秒。同一剪辑点附近连续多帧高分，只取最高分算一个切点</span></label>
+        <div class="sensitivity-wrap">
+          <input type="range" id="cluster-win" min="0.2" max="1.5" step="0.1" value="0.5" />
+          <span class="sens-val" id="cluster-win-val">0.5s</span>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:16px">
+        <label>击球判定阈值 <span style="color:var(--text-3)">— dB。切点之后多久内出现多强的击球声才认定「新回合开始」。调低更容易切开，调高更保守</span></label>
+        <div class="sensitivity-wrap">
+          <input type="range" id="hit-db" min="3" max="18" step="0.5" value="8" />
+          <span class="sens-val" id="hit-db-val">8dB</span>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:16px">
+        <label>击球观察窗口 <span style="color:var(--text-3)">— 秒。切点后最多往后看多久找第一拍。发球准备长的项目（网球抛球）需调大</span></label>
+        <div class="sensitivity-wrap">
+          <input type="range" id="hit-win" min="2" max="8" step="0.5" value="5" />
+          <span class="sens-val" id="hit-win-val">5.0s</span>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="btn-start" disabled style="width:100%;padding:12px">
+        选择视频后开始分析
+      </button>
+    </div>
+
+    <div class="recent-projects hidden" id="recent-projects">
+      <div class="recent-head">
+        <h3>继续上次</h3>
+        <button class="btn btn-ghost btn-sm" id="btn-clear-projects">清空全部</button>
+      </div>
+      <div class="project-list" id="project-list"></div>
+    </div>
+
+    <div style="margin-top:24px;color:var(--text-3);font-size:12px">
+      视频仅在本地浏览器处理，不会上传服务器。分析结果保存在本机浏览器里。
+    </div>
+  </main>
+
+  <!-- Processing Page -->
+  <main class="processing-page hidden" id="processing-page">
+    <div class="processing-spinner"></div>
+    <h2 id="proc-title">正在分析比赛</h2>
+    <p id="proc-desc">识别回合边界中…</p>
+    <div class="processing-bar"><div class="processing-bar-fill" id="proc-bar"></div></div>
+    <div class="processing-step" id="proc-step">0%</div>
+  </main>
+
+  <!-- Browser Page -->
+  <main class="browser hidden" id="browser-page">
+    <div class="browser-toolbar">
+      <div class="target-duration">
+        <span class="label">目标时长</span>
+        <button class="target-btn active" data-target="60">60秒</button>
+        <button class="target-btn" data-target="90">90秒</button>
+        <button class="target-btn" data-target="120">120秒</button>
+        <button class="target-btn" data-target="custom">自定义</button>
+        <input type="number" class="target-custom" id="target-custom" value="90" min="10" max="600" />
+      </div>
+      <div class="spacer" style="flex:1"></div>
+      <div class="reanalyze-group">
+        <div class="mini-seg" id="browser-source">
+          <button class="mini active" data-source="fused" title="画面突变 + 音频不连续，多模态切点检测（推荐）">融合</button>
+          <button class="mini" data-source="audio" title="仅音频不连续">声音</button>
+          <button class="mini" data-source="video" title="仅画面突变，无声视频用">画面</button>
+        </div>
+        <span class="label">灵敏度</span>
+        <input type="range" id="browser-sens" min="0.5" max="2" step="0.1" value="0.8" />
+        <span class="sens-val" id="browser-sens-val">0.8×</span>
+        <button class="btn btn-sm" id="btn-reanalyze" title="用当前设置重新切分回合">重切</button>
+      </div>
+      <button class="btn btn-sm" id="btn-toggle-view">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        网格视图
+      </button>
+      <button class="btn btn-sm" id="btn-generate">
+        生成集锦
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </button>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-block">
+        <div class="stat-label">总回合</div>
+        <div class="stat-value" id="stat-total">0</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-label">已保留</div>
+        <div class="stat-value keep" id="stat-keep">0</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-label">已删除</div>
+        <div class="stat-value drop" id="stat-drop">0</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-label">已选时长</div>
+        <div class="stat-value" id="stat-selected">0:00</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-label" id="stat-target-label">目标</div>
+        <div class="stat-value" id="stat-target">1:00</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-label">剩余 / 超出</div>
+        <div class="stat-value" id="stat-remaining">+1:00</div>
+      </div>
+      <div class="progress-wrap">
+        <div class="stat-label">进度</div>
+        <div class="progress-bar"><div class="progress-bar-fill" id="progress-fill"></div></div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <button class="filter-chip active" data-filter="all">全部</button>
+      <button class="filter-chip" data-filter="pending">仅待定</button>
+      <button class="filter-chip" data-filter="keep">仅保留</button>
+      <button class="filter-chip" data-filter="drop">仅删除</button>
+      <span style="flex:1"></span>
+      <button class="filter-chip" id="btn-keep-all">全部保留</button>
+      <button class="filter-chip" id="btn-drop-all">全部删除</button>
+      <button class="filter-chip" id="btn-invert">反选</button>
+      <button class="filter-chip" id="btn-add-rally">+ 添加回合</button>
+      <button class="filter-chip active" id="btn-hover-preview" title="鼠标划过卡片时，左侧自动跳到该回合">悬停预览</button>
+    </div>
+
+    <div class="browser-main">
+      <section class="video-panel">
+        <div class="video-stage">
+          <video id="main-video" preload="auto" playsinline></video>
+          <div class="video-overlay">
+            <div class="info-chip" id="overlay-current">回合 1 / 0</div>
+            <div class="info-chip" id="overlay-state" style="display:none">播放中</div>
+          </div>
+        </div>
+        <div class="video-controls">
+          <div class="timeline-wrap" id="timeline">
+            <div class="timeline-track" id="timeline-track"></div>
+            <div class="timeline-playhead" id="playhead" style="left:0%"></div>
+          </div>
+          <div class="video-control-row">
+            <button class="btn btn-icon" id="btn-prev" title="上一个回合 (←)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <button class="btn btn-icon" id="btn-play" title="播放/暂停 (Space)">
+              <svg id="play-icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            </button>
+            <button class="btn btn-icon" id="btn-next" title="下一个回合 (→)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+            <div class="time" id="time-display">0:00.0 / 0:00.0</div>
+            <div class="spacer"></div>
+            <select class="playback-rate" id="rate-select">
+              <option value="0.5">0.5×</option>
+              <option value="1" selected>1.0×</option>
+              <option value="1.25">1.25×</option>
+              <option value="1.5">1.5×</option>
+              <option value="2">2.0×</option>
+            </select>
+            <button class="btn btn-sm btn-keep" id="btn-keep" title="保留 (Enter / 1)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+              保留
+            </button>
+            <button class="btn btn-sm btn-danger" id="btn-drop" title="删除 (Delete / 2)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14H7L5 6"/></svg>
+              删除
+            </button>
+            <button class="btn btn-sm" id="btn-edit" title="调整起止">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              调整
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="side-panel">
+        <div class="side-header">
+          <h3>回合列表</h3>
+          <span class="pill" id="current-rally-info">—</span>
+        </div>
+        <div class="analysis-curve hidden" id="analysis-curve">
+          <h4 id="analysis-curve-title">分析曲线 · 竖线为切点</h4>
+          <canvas id="analysis-cv"></canvas>
+        </div>
+        <div class="side-content" id="rally-list"></div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- Preview Page -->
+  <main class="preview-page hidden" id="preview-page">
+    <div class="preview-stage">
+      <video id="preview-video" controls playsinline></video>
+      <div class="preview-info">
+        <div class="info-chip" id="preview-duration">总时长 0:00</div>
+        <div class="info-chip" id="preview-count">0 个片段</div>
+      </div>
+    </div>
+    <div class="preview-controls">
+      <div class="preview-stats">
+        <div class="stat-block">
+          <div class="stat-label">最终时长</div>
+          <div class="stat-value keep" id="final-duration">0:00</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-label">片段数</div>
+          <div class="stat-value" id="final-count">0</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-label">拼接顺序</div>
+          <div class="stat-value" style="font-size:13px">按比赛时间顺序</div>
+        </div>
+      </div>
+      <div class="spacer" style="flex:1"></div>
+      <button class="btn" id="btn-back-adjust">返回调整</button>
+      <button class="btn" id="btn-rebuild">重新筛选</button>
+      <button class="btn btn-primary" id="btn-export">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        导出集锦
+      </button>
+    </div>
+  </main>
+</div>
+
+<!-- Grid View -->
+<div class="grid-view hidden" id="grid-view">
+  <div class="grid-view-header">
+    <div class="logo"><div class="logo-mark">R</div><span>RoundCut</span></div>
+    <span class="pill"><span class="dot"></span><span id="grid-count-label">0 回合</span></span>
+    <div class="spacer" style="flex:1"></div>
+    <button class="btn btn-sm" id="btn-grid-close">关闭网格</button>
+  </div>
+  <div class="grid-view-content">
+    <div class="grid" id="grid-list"></div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-backdrop hidden" id="edit-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="edit-title">调整回合</h3>
+      <button class="btn btn-icon" id="btn-edit-close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <video class="clip-edit-video" id="edit-video" playsinline></video>
+      <div class="clip-edit-row">
+        <label>开始</label>
+        <input type="range" id="edit-start" min="0" max="100" step="0.1" value="0" />
+        <span class="time-val" id="edit-start-val">0:00.0</span>
+      </div>
+      <div class="clip-edit-row">
+        <label>结束</label>
+        <input type="range" id="edit-end" min="0" max="100" step="0.1" value="100" />
+        <span class="time-val" id="edit-end-val">0:00.0</span>
+      </div>
+      <div class="quick-adjust-label">开始时间快速调整</div>
+      <div class="quick-adjust">
+        <button class="btn btn-sm" data-adjust="start" data-delta="-1">-1秒</button>
+        <button class="btn btn-sm" data-adjust="start" data-delta="-0.5">-0.5秒</button>
+        <button class="btn btn-sm" data-adjust="start" data-delta="0.5">+0.5秒</button>
+        <button class="btn btn-sm" data-adjust="start" data-delta="1">+1秒</button>
+      </div>
+      <div class="quick-adjust-label" style="margin-top:14px">结束时间快速调整</div>
+      <div class="quick-adjust">
+        <button class="btn btn-sm" data-adjust="end" data-delta="-1">-1秒</button>
+        <button class="btn btn-sm" data-adjust="end" data-delta="-0.5">-0.5秒</button>
+        <button class="btn btn-sm" data-adjust="end" data-delta="0.5">+0.5秒</button>
+        <button class="btn btn-sm" data-adjust="end" data-delta="1">+1秒</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="btn-edit-cancel">取消</button>
+      <button class="btn btn-primary" id="btn-edit-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Help overlay -->
+<div class="help-overlay hidden" id="help-overlay">
+  <h4>键盘快捷键</h4>
+  <div class="help-row"><span>播放 / 暂停</span><span class="keys"><span class="kbd">Space</span></span></div>
+  <div class="help-row"><span>上一个回合</span><span class="keys"><span class="kbd">←</span></span></div>
+  <div class="help-row"><span>下一个回合</span><span class="keys"><span class="kbd">→</span></span></div>
+  <div class="help-row"><span>保留 / 取消保留</span><span class="keys"><span class="kbd">Enter</span><span class="kbd">1</span></span></div>
+  <div class="help-row"><span>删除 / 取消删除</span><span class="keys"><span class="kbd">Del</span><span class="kbd">2</span></span></div>
+  <div class="help-row"><span>网格视图开关</span><span class="keys"><span class="kbd">G</span></span></div>
+  <div class="help-row"><span>关闭面板 / 网格</span><span class="keys"><span class="kbd">Esc</span></span></div>
+  <div class="help-row"><span>显示本面板</span><span class="keys"><span class="kbd">?</span></span></div>
+  <div class="help-note">以上快捷键在进入浏览页后生效。再按一次同一键可取消保留 / 删除。</div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+/* ============== State ============== */
+const SPORT_LABEL = {
+  tennis:'网球',
+  badminton:'羽毛球',
+  tabletennis:'乒乓球',
+  other:'其他 / 手动'
+};
+
+/* 分析预设：赛事录像通常 25fps，因此按 25fps 的整数分频设计采样
+   （每 5 / 2 / 1 帧取一帧），采样点在时间轴上严格均匀。
+   fps 越高 → 边界精度越高，但分析越慢（耗时与视频时长成正比）。 */
+const SOURCE_FPS = 25;
+/* 发球提前量：找到第一次击球声后，把回合起点往前挪这么多秒，
+   用来包住引拍、抛球这类没有声音的发球准备动作。 */
+const SERVE_LEAD = 0.8;
+const ANALYSIS_PRESETS = {
+  fast:     { label:'快速', fps: 5,    every: 5, workW: 128, workH: 72,  maxFrames: 2500 },
+  standard: { label:'标准', fps: 12.5, every: 2, workW: 160, workH: 90,  maxFrames: 6000 },
+  fine:     { label:'精细', fps: 25,   every: 1, workW: 192, workH: 108, maxFrames: 12000 }
+};
+
+/* 各球类的回合时长先验（秒）。
+   minRally/maxRally 约束切分粒度：过短的片段并回相邻回合，过长的片段二次拆分。
+   minGap = 判定为「回合间隙」的最短安静时长，短于此视为回合内的换拍停顿。
+   maxGap = 超过此长度的安静段视为暂停/局间休息，不作为普通回合间隙。 */
+const SPORT_DEFAULTS = {
+  tennis:      { minRally: 6,   maxRally: 32, minGap: 1.6, maxGap: 45 },
+  badminton:   { minRally: 4,   maxRally: 26, minGap: 1.4, maxGap: 45 },
+  tabletennis: { minRally: 2.5, maxRally: 18, minGap: 1.0, maxGap: 40 },
+  other:       { minRally: 8,   maxRally: 45, minGap: 1.8, maxGap: 60 }
+};
+
+const state = {
+  video: null,        // { url, file, duration, width, height }
+  sport: 'tennis',
+  preBuffer: 0,     // 切点检测模式下默认 0：回合边界就是剪辑点，不再额外外扩
+  postBuffer: 0,
+  targetDuration: 60,
+  rallies: [],        // [{ id, index, start, end, coreStart, coreEnd, status, motion, rating, thumbnail, scoreBefore, scoreAfter }]
+  currentIndex: 0,
+  filter: 'all',
+  view: 'browser',    // 'browser' | 'preview'
+  gridOpen: false,
+  ratings: true,      // 是否显示精彩度评分
+  analysisQuality: 'standard',
+  analysisSource: 'fused',  // 'video' 画面变化 | 'audio' 声音 | 'fused' 画面+声音（多模态切点检测用这个）
+  contentType: 'compilation', // 'match' 完整比赛（回合间有安静期）| 'compilation' 剪辑合集（片段硬切拼接）
+  hoverPreview: true,   // 鼠标划过回合卡片时，左侧预览跳到该回合（不播放）
+  sensitivity: 0.8,   // <1 更严格(少切) / >1 更敏感(多切)。0.8 为保守默认，减少过切
+
+  /* ---- 多模态切点检测参数（均可调，便于用真实赛事视频标定）---- */
+  visualWeight: 0.6,  // 画面变化权重
+  audioWeight: 0.4,   // 音频不连续权重
+  minSeg: 2.5,        // 最短回合时长（秒），短于此的段会被合并掉
+  hitDb: 8,           // 判定「有击球」的阈值：切点后瞬态超出局部背景多少 dB
+  hitWin: 5.0,        // 击球观察窗口上限（秒）：切点后最多往后看多久找第一拍
+  clusterWin: 0.5,    // 切点时间聚类窗口（秒）：同一剪辑点附近多帧高分只算一个切点
+  analysis: null,     // 分析产物：{ times, diffs, peakIdx, audio } 供复盘与可视化
+
+  /* ---- 历史记录（IndexedDB）---- */
+  projectId: null,       // 由「文件名 + 大小」决定，同一文件重复分析会更新同一条记录
+  projectCreatedAt: null,
+  fileHandle: null,      // File System Access API 句柄，重开时可直接读回原文件
+  thumbReady: false      // 缩略图是否已生成（生成完再存一次，列表才有封面）
+};
+
+/* ============== Utilities ============== */
+const $ = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+/* 帧特征缓存：抽帧结果只算一次，调灵敏度时复用，避免重复解码 */
+let featureCache = null;
+
+/* 悬停预览的防抖计时器：快速划过列表时不逐个切换视频 */
+let hoverTimer = null;
+/* 悬停预览抑制窗口：selectRally 会重建列表（innerHTML=''），光标下的卡片换成
+   新 DOM 节点后浏览器会补发 mouseenter，160ms 后把刚点开的视频 pause 掉，
+   表现为「点了不播放、卡在首帧」。重渲染后抑制一小段时间即可。 */
+let hoverSuppressUntil = 0;
+
+/* ============================================================
+   项目持久化（IndexedDB）
+   ------------------------------------------------------------
+   分析一次要几分钟，刷新就没了太浪费。所以把「回合列表 + 筛选状态 + 设置」
+   存进 IndexedDB。视频文件本身不入库（动辄上 GB），改为：
+     · 支持 File System Access API 的浏览器 → 记住文件句柄，重开可直接接着用
+     · 不支持的 → 记住文件名，恢复时让用户再选一次同一个文件
+   ============================================================ */
+const DB_NAME = 'roundcut';
+const DB_VER  = 1;
+const STORE   = 'projects';
+let _db = null;
+
+function openDB(){
+  return new Promise((resolve, reject) => {
+    if (_db) return resolve(_db);
+    let req;
+    try { req = indexedDB.open(DB_NAME, DB_VER); }
+    catch (e){ return reject(e); }
+    req.onupgradeneeded = ev => {
+      const db = ev.target.result;
+      if (!db.objectStoreNames.contains(STORE)){
+        const os = db.createObjectStore(STORE, { keyPath: 'id' });
+        os.createIndex('updatedAt', 'updatedAt');
+      }
+    };
+    req.onsuccess = ev => { _db = ev.target.result; resolve(_db); };
+    req.onerror   = ev => reject(ev.target.error);
+  });
+}
+
+async function idbPut(obj){
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).put(obj);
+    tx.oncomplete = () => resolve();
+    tx.onerror = e => reject(e.target.error);
+  });
+}
+
+async function idbAll(){
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readonly');
+    const r = tx.objectStore(STORE).getAll();
+    r.onsuccess = () => resolve(r.result || []);
+    r.onerror = e => reject(e.target.error);
+  });
+}
+
+async function idbGet(id){
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readonly');
+    const r = tx.objectStore(STORE).get(id);
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = e => reject(e.target.error);
+  });
+}
+
+async function idbDel(id){
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = e => reject(e.target.error);
+  });
+}
+
+async function idbClear(){
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = e => reject(e.target.error);
+  });
+}
+
+/* 当前状态 → 可序列化的项目对象 */
+function snapshotProject(){
+  const keepCount = state.rallies.filter(r => r.status === 'keep').length;
+  const selDur = state.rallies
+    .filter(r => r.status === 'keep')
+    .reduce((s, r) => s + (r.end - r.start), 0);
+  return {
+    id: state.projectId,
+    name: state.video?.file?.name || '未命名视频',
+    size: state.video?.file?.size || 0,
+    duration: state.video?.duration || 0,
+    sport: state.sport,
+    contentType: state.contentType,
+    analysisSource: state.analysisSource,
+    analysisQuality: state.analysisQuality,
+    sensitivity: state.sensitivity,
+    preBuffer: state.preBuffer,
+    postBuffer: state.postBuffer,
+    targetDuration: state.targetDuration,
+    // 切分参数一起存：这些是标定出来的，重开后不该退回默认值
+    mm: {
+      visualWeight: state.visualWeight, audioWeight: state.audioWeight,
+      minSeg: state.minSeg, clusterWin: state.clusterWin,
+      hitDb: state.hitDb, hitWin: state.hitWin
+    },
+    // 缩略图只存前若干张（列表首屏用），避免库膨胀
+    rallies: state.rallies.map(r => ({
+      start: r.start, end: r.end,
+      coreStart: r.coreStart, coreEnd: r.coreEnd,
+      status: r.status, motion: r.motion, rating: r.rating,
+      thumbnail: r.thumbnail
+    })),
+    stats: { total: state.rallies.length, keep: keepCount, selected: selDur },
+    previewThumb: state.rallies.find(r => r.thumbnail)?.thumbnail || null,
+    fileHandle: state.fileHandle || null,   // File System Access API 句柄（可结构化克隆）
+    createdAt: state.projectCreatedAt || Date.now(),
+    updatedAt: Date.now()
+  };
+}
+
+/* 项目 id：同一文件（同名 + 同大小）复用同一条记录，重新分析即覆盖更新 */
+function makeProjectId(file){
+  return (file?.name || 'video') + '::' + (file?.size || 0);
+}
+/* 分析完成后调用：绑定 id，并尽量保留这条记录最初的创建时间 */
+async function beginProject(){
+  state.projectId = makeProjectId(state.video?.file);
+  state.projectCreatedAt = Date.now();
+  try {
+    const old = await idbGet(state.projectId);
+    if (old && old.createdAt) state.projectCreatedAt = old.createdAt;
+  } catch (e){ /* 读不到就用当前时间 */ }
+}
+
+/* 把 state 里的参数回填到上传页的滑块上（恢复项目后界面要和实际参数一致） */
+function syncRangeInputs(){
+  const map = {
+    'visual-weight': 'visualWeight', 'audio-weight': 'audioWeight',
+    'min-seg': 'minSeg', 'cluster-win': 'clusterWin',
+    'hit-db': 'hitDb', 'hit-win': 'hitWin'
+  };
+  Object.entries(map).forEach(([id, key]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = state[key];
+    el.dispatchEvent(new Event('input'));   // 触发已有绑定，同步数值标签
+  });
+}
+
+/* 保存（带防抖，避免每次按键都写库） */
+let saveTimer = null;
+function scheduleSave(){
+  if (!state.projectId || !state.rallies.length) return;
+  const el = $('#save-status');
+  if (el){ el.classList.add('saving'); el.textContent = '保存中…'; }
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try {
+      await idbPut(snapshotProject());
+      const el2 = $('#save-status');
+      if (el2){
+        el2.classList.remove('saving');
+        el2.textContent = '已保存 · ' + new Date().toLocaleTimeString('zh-CN',
+          { hour:'2-digit', minute:'2-digit' });
+      }
+    } catch (e){
+      console.warn('[save]', e);
+      const el3 = $('#save-status');
+      if (el3){ el3.classList.remove('saving'); el3.textContent = '保存失败'; }
+    }
+  }, 900);
+}
+
+/* 从项目对象恢复状态 */
+async function restoreProject(p){
+  state.projectId = p.id;
+  state.projectCreatedAt = p.createdAt;
+  state.sport = p.sport || 'tennis';
+  state.contentType = p.contentType || 'compilation';
+  state.analysisSource = p.analysisSource || 'fused';
+  state.analysisQuality = p.analysisQuality || 'standard';
+  state.sensitivity = p.sensitivity ?? 0.8;
+  state.preBuffer = p.preBuffer ?? 2;
+  state.postBuffer = p.postBuffer ?? 3;
+  state.targetDuration = p.targetDuration || 60;
+  state.fileHandle = p.fileHandle || null;
+  if (p.mm){
+    state.visualWeight = p.mm.visualWeight ?? state.visualWeight;
+    state.audioWeight  = p.mm.audioWeight  ?? state.audioWeight;
+    state.minSeg       = p.mm.minSeg       ?? state.minSeg;
+    state.clusterWin   = p.mm.clusterWin   ?? state.clusterWin;
+    state.hitDb        = p.mm.hitDb        ?? state.hitDb;
+    state.hitWin       = p.mm.hitWin       ?? state.hitWin;
+  }
+
+  // 先把回合数据填进去，这样即使视频还没就绪，界面也能显示
+  state.rallies = (p.rallies || []).map((r, i) => ({
+    id: 'r' + i, index: i,
+    start: r.start, end: r.end,
+    coreStart: r.coreStart ?? r.start, coreEnd: r.coreEnd ?? r.end,
+    status: r.status || 'pending',
+    motion: r.motion || 0,
+    rating: r.rating || 60,
+    thumbnail: r.thumbnail || null,
+    scoreBefore: null, scoreAfter: null
+  }));
+
+  // 尝试拿回视频文件：优先用保存的句柄，否则让用户再选一次
+  let file = null;
+  if (state.fileHandle){
+    try {
+      const perm = await state.fileHandle.queryPermission?.({ mode: 'read' });
+      if (perm === 'granted' ||
+          (await state.fileHandle.requestPermission?.({ mode: 'read' })) === 'granted'){
+        file = await state.fileHandle.getFile();
+      }
+    } catch (e){ console.warn('[handle]', e); }
+  }
+
+  if (!file){
+    file = await promptPickFile(p.name);
+    if (!file) return false;
+    // 校验是不是同一个文件
+    if (p.size && file.size && Math.abs(file.size - p.size) > 1024){
+      if (!confirm(`选择的文件大小与记录不一致。\n\n记录：${p.name}（${(p.size/1048576).toFixed(1)}MB）\n当前：${file.name}（${(file.size/1048576).toFixed(1)}MB）\n\n仍要继续吗？时间轴可能对不上。`)){
+        return false;
+      }
+    }
+  }
+
+  state.video = { file, url: URL.createObjectURL(file), name: file.name };
+  await loadVideo();
+  syncRangeInputs();   // 界面上的参数滑块回到保存时的值
+  return true;
+}
+
+/* 需要用户重新选文件时用的 Promise 版选择器 */
+function promptPickFile(expectedName){
+  return new Promise(resolve => {
+    const hint = expectedName ? `请选择「${expectedName}」` : '请选择视频文件';
+    toast(hint);
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'video/*';
+    inp.onchange = () => resolve(inp.files[0] || null);
+    // 用户取消时（现代浏览器可监听 cancel）
+    inp.addEventListener('cancel', () => resolve(null));
+    inp.click();
+  });
+}
+
+function fmt(seconds){
+  if (!isFinite(seconds) || seconds < 0) seconds = 0;
+  const m = Math.floor(seconds / 60);
+  const s = seconds - m * 60;
+  const sFloor = Math.floor(s);
+  const tenths = Math.floor((s - sFloor) * 10);
+  return `${m}:${sFloor.toString().padStart(2,'0')}.${tenths}`;
+}
+function fmtSigned(seconds){
+  const sign = seconds >= 0 ? '+' : '-';
+  return sign + fmt(Math.abs(seconds));
+}
+function fmtDuration(seconds){
+  if (!isFinite(seconds) || seconds < 0) seconds = 0;
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds - m * 60);
+  return `${m}:${s.toString().padStart(2,'0')}`;
+}
+
+function toast(msg, type){
+  const el = document.createElement('div');
+  el.className = 'toast' + (type ? ' ' + type : '');
+  el.textContent = msg;
+  $('#toast-container').appendChild(el);
+  setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transition = 'opacity .3s';
+    setTimeout(() => el.remove(), 300);
+  }, 1600);
+}
+
+/* ============== Page navigation ============== */
+function showPage(name){
+  ['upload','processing','browser','preview'].forEach(p => {
+    $('#'+p+'-page').classList.toggle('hidden', p !== name);
+  });
+  state.view = name;
+  // 浏览页锁住整页滚动，让左栏固定、右栏独立滚动
+  document.body.classList.toggle('fixed', name === 'browser');
+  $('#save-status').style.display = (name === 'browser') ? '' : 'none';
+  if (name !== 'upload'){
+    $('#btn-restart').style.display = '';
+  }
+  if (name === 'browser'){
+    $('#video-pill').style.display = '';
+    $('#video-pill-label').textContent = (state.video?.file?.name || 'video').slice(0,40);
+    $('#sport-pill').style.display = '';
+    $('#sport-pill-label').textContent = SPORT_LABEL[state.sport] || '';
+  } else if (name === 'preview'){
+    $('#video-pill').style.display = '';
+    $('#sport-pill').style.display = '';
+  }
+}
+
+/* ============== 最近项目列表 ============== */
+function timeAgo(ts){
+  const d = Date.now() - ts;
+  const m = Math.floor(d / 60000);
+  if (m < 1) return '刚刚';
+  if (m < 60) return m + ' 分钟前';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + ' 小时前';
+  const day = Math.floor(h / 24);
+  if (day < 30) return day + ' 天前';
+  return new Date(ts).toLocaleDateString('zh-CN');
+}
+
+async function renderProjectList(){
+  const box = $('#recent-projects');
+  const list = $('#project-list');
+  let projects = [];
+  try { projects = await idbAll(); }
+  catch (e){ console.warn('[idb]', e); box.classList.add('hidden'); return; }
+
+  if (!projects.length){ box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  projects.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+  list.innerHTML = '';
+  projects.slice(0, 8).forEach(p => {
+    const item = document.createElement('div');
+    item.className = 'project-item';
+    const cover = p.previewThumb || (p.rallies || []).find(r => r.thumbnail)?.thumbnail;
+    item.innerHTML = `
+      ${cover ? `<img class="project-thumb" src="${cover}">`
+              : `<div class="project-thumb"></div>`}
+      <div class="project-meta">
+        <div class="project-name">${escapeHtml(p.name || '未命名')}</div>
+        <div class="project-sub">
+          ${p.stats ? `${p.stats.total} 个回合 · 已保留 ${p.stats.keep} 个 · ${fmtDuration(p.stats.selected || 0)}` : '无回合数据'}
+          · ${timeAgo(p.updatedAt)}
+          ${p.fileHandle ? '' : ' · 需重新选文件'}
+        </div>
+      </div>
+      <button class="project-del" title="删除这条记录">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14H7L5 6"/></svg>
+      </button>
+    `;
+    item.onclick = async (e) => {
+      if (e.target.closest('.project-del')) return;
+      await openProject(p.id);
+    };
+    item.querySelector('.project-del').onclick = async (e) => {
+      e.stopPropagation();
+      if (!confirm(`删除「${p.name}」的分析记录？\n（只删除记录，不影响原视频）`)) return;
+      await idbDel(p.id);
+      renderProjectList();
+      toast('已删除');
+    };
+    list.appendChild(item);
+  });
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+/* 打开一个已保存的项目 */
+async function openProject(id){
+  let p;
+  try { p = await idbGet(id); }
+  catch (e){ toast('读取失败'); return; }
+  if (!p){ toast('记录不存在'); return; }
+
+  showPage('processing');
+  $('#proc-title').textContent = '正在恢复项目';
+  $('#proc-desc').textContent = p.fileHandle ? '正在读取视频文件…' : '需要重新选择视频文件';
+  $('#proc-bar').style.width = '30%';
+  $('#proc-step').textContent = p.fileHandle ? '读取中…' : '请在弹窗中选择对应的视频';
+
+  const ok = await restoreProject(p);
+  if (!ok){
+    showPage('upload');
+    renderProjectList();
+    return;
+  }
+
+  $('#proc-bar').style.width = '100%';
+  $('#proc-step').textContent = `✓ 已恢复 ${state.rallies.length} 个回合`;
+  await new Promise(r => setTimeout(r, 300));
+
+  showPage('browser');
+  renderBrowser();
+  // 恢复后不重新分析，直接用保存的切分；featureCache 为空，
+  // 所以「重切」会提示需要先分析一次
+  toast(`已恢复「${p.name}」· ${state.rallies.length} 个回合`);
+}
+
+/* ============== Upload page ============== */
+function setupUpload(){
+  const card = $('#upload-card');
+  const drop = $('#upload-drop');
+  const input = $('#file-input');
+  const startBtn = $('#btn-start');
+
+  // Sport selection
+  $$('.sport-opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      $$('.sport-opt').forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+      state.sport = opt.dataset.sport;
+    });
+  });
+  // default select tennis
+  $('.sport-opt[data-sport="tennis"]').click();
+
+  // Pre/post buffer
+  $('#pre-buffer').addEventListener('change', e => {
+    state.preBuffer = parseFloat(e.target.value) || 0;
+  });
+  $('#post-buffer').addEventListener('change', e => {
+    state.postBuffer = parseFloat(e.target.value) || 0;
+  });
+
+  // 素材类型（剪辑合集 / 完整比赛）
+  const CONTENT_HINT = {
+    compilation: '合集是别人把片段一个个拼起来的：片段之间通常没有安静期，只有画面整屏切换和声音电平突变。会重点检测硬切点。',
+    match: '完整比赛里，回合之间有准备发球、擦汗的安静期。会用安静期定位边界，并把起点对齐到发球。'
+  };
+  $$('#content-group .seg').forEach(b => {
+    b.addEventListener('click', () => {
+      $$('#content-group .seg').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      state.contentType = b.dataset.content;
+      $('#content-hint').textContent = CONTENT_HINT[b.dataset.content] || '';
+    });
+  });
+
+  // 切分依据（声音 / 融合 / 仅画面）
+  const SRC_HINT = {
+    audio: '快。靠「安静期 + 声音电平突变」找接缝。但如果各片段音量很接近，接缝会听不出来而漏切——这时改用「声音+画面」。',
+    fused: '最准。在声音之上再加画面硬切检测：片段间画面被整个换掉时，即使音量没变化也能抓到。代价是要逐帧抽画面，耗时最长。',
+    video: '仅在没有音轨、或音频极嘈杂时用。纯看画面突变，注意慢动作回放和观众席镜头会造成误切。'
+  };
+  $$('#source-group .seg').forEach(b => {
+    b.addEventListener('click', () => {
+      $$('#source-group .seg').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      state.analysisSource = b.dataset.source;
+      $('#source-hint').textContent = SRC_HINT[b.dataset.source] || '';
+      // 纯声音模式不需要逐帧抽画面，隐藏精度选项
+      $('#quality-wrap').style.display = b.dataset.source === 'audio' ? 'none' : '';
+    });
+  });
+
+  // 分析精度
+  $$('#quality-group .seg').forEach(b => {
+    b.addEventListener('click', () => {
+      $$('#quality-group .seg').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      state.analysisQuality = b.dataset.quality;
+    });
+  });
+
+  // 切分灵敏度
+  const sens = $('#sensitivity');
+  sens.addEventListener('input', () => {
+    state.sensitivity = parseFloat(sens.value);
+    $('#sensitivity-val').textContent = state.sensitivity.toFixed(1) + '×';
+  });
+
+  // 多模态切点检测参数
+  const bindRange = (id, key, fmt) => {
+    const el = $('#' + id);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      state[key] = parseFloat(el.value);
+      const out = $('#' + id + '-val');
+      if (out) out.textContent = fmt(state[key]);
+    });
+  };
+  bindRange('visual-weight', 'visualWeight', v => v.toFixed(2));
+  bindRange('audio-weight',  'audioWeight',  v => v.toFixed(2));
+  bindRange('min-seg',       'minSeg',       v => v.toFixed(1) + 's');
+  bindRange('cluster-win',   'clusterWin',   v => v.toFixed(1) + 's');
+  bindRange('hit-db',        'hitDb',        v => v.toFixed(1) + 'dB');
+  bindRange('hit-win',       'hitWin',       v => v.toFixed(1) + 's');
+
+  // File selection
+  function selectFile(file, handle){
+    if (!file) return;
+    if (!file.type.startsWith('video/')){
+      toast('请选择视频文件');
+      return;
+    }
+    state.fileHandle = handle || null;   // 记下句柄，重开时可能免于再选一次文件
+    state.video = { file, url: URL.createObjectURL(file), name: file.name };
+    startBtn.disabled = false;
+    startBtn.textContent = `开始分析：${file.name.slice(0,40)}`;
+    drop.querySelector('h2').textContent = '已选择：' + file.name;
+    drop.querySelector('p').textContent = '点击重新选择，或继续下方开始分析';
+
+    // 读元数据 → 预估各精度耗时
+    const probe = document.createElement('video');
+    probe.preload = 'metadata';
+    probe.src = state.video.url;
+    probe.onloadedmetadata = () => {
+      state.video.duration = probe.duration;
+      const dur = probe.duration;
+      // 经验值：单帧 seek + 特征提取约 45ms
+      const perFrame = 0.045;
+      Object.entries(ANALYSIS_PRESETS).forEach(([key, p]) => {
+        const n = Math.max(60, Math.min(p.maxFrames, Math.round(dur * p.fps)));
+        const secs = Math.round(n * perFrame);
+        const el = document.querySelector(`.seg[data-quality="${key}"] .seg-sub`);
+        if (el) el.textContent = `${p.fps}fps · 约${secs >= 60 ? Math.round(secs/60)+'分' : secs+'秒'}`;
+      });
+    };
+  }
+  /* 点击选择：优先用 File System Access API —— 它能拿到文件句柄，
+     下次打开可以直接读回原文件，不用再选一次。不支持时回退到普通 input。
+     注意 input 在 drop 内部，必须阻止它的 click 冒泡，否则会递归触发自己。 */
+  input.addEventListener('click', e => e.stopPropagation());
+  drop.addEventListener('click', async () => {
+    if (window.showOpenFilePicker){
+      try {
+        const [h] = await window.showOpenFilePicker({
+          types: [{ description: '视频', accept: { 'video/*': [] } }],
+          multiple: false
+        });
+        selectFile(await h.getFile(), h);
+        return;
+      } catch (e){
+        if (e && e.name === 'AbortError') return;   // 用户取消
+        // 其它错误（如非安全上下文）回退到普通 input
+      }
+    }
+    input.click();
+  });
+  input.addEventListener('change', e => selectFile(e.target.files[0]));
+
+  // Drag-drop
+  card.addEventListener('dragover', e => {
+    e.preventDefault();
+    card.classList.add('dragover');
+  });
+  card.addEventListener('dragleave', () => card.classList.remove('dragover'));
+  card.addEventListener('drop', e => {
+    e.preventDefault();
+    card.classList.remove('dragover');
+    selectFile(e.dataTransfer.files[0]);
+  });
+
+  // Start
+  startBtn.addEventListener('click', async () => {
+    if (!state.video) return;
+    startBtn.disabled = true;
+    await loadVideo();
+    showPage('processing');
+    await analyzeVideo();
+    // 分析完成 → 建立 / 更新这条历史记录（同一文件用同一个 id，重分析会覆盖旧记录）
+    await beginProject();
+    showPage('browser');
+    renderBrowser();
+  });
+}
+
+/* ============== Load video metadata ============== */
+async function loadVideo(){
+  return new Promise((resolve, reject) => {
+    const v = document.createElement('video');
+    v.preload = 'metadata';
+    v.src = state.video.url;
+    v.onloadedmetadata = () => {
+      state.video.duration = v.duration;
+      state.video.width = v.videoWidth;
+      state.video.height = v.videoHeight;
+      resolve();
+    };
+    v.onerror = () => reject('视频加载失败');
+  });
+}
+
+/* ============================================================
+   帧级画面差异分析引擎
+   ------------------------------------------------------------
+   管线：
+     1) 按目标 fps 抽帧 → 缩放到工作分辨率（如 160×90）
+     2) 每帧提取 4 维特征
+          · 灰度直方图 32 bin      —— 整体明暗分布
+          · 色相直方图 18 bin      —— 色彩分布（抗亮度漂移）
+          · 8×8 灰度指纹           —— 空间结构（区分同亮度不同构图）
+          · 全分辨率灰度图          —— 像素级变化
+     3) 相邻帧比对，输出 4 个距离并加权融合为「画面变化强度」
+          MAD(0.38) + 指纹(0.24) + 灰度χ²(0.24) + 色相χ²(0.14)
+     4) 自适应峰值检测
+          候选条件 = 高于全局 92 分位  且  高于绝对下限  且  高于局部均值 1.45×
+          再在峰值 ±2 帧内取真正的局部极大 → 得到帧级精度的切点
+     5) 用球类时长先验做合并 / 二次拆分
+     6) 回合核心区间的平均画面变化 → 运动强度 → 精彩度评分
+
+   相比旧的「单标量亮度差」方案：
+     · 采样密度  0.5s(2fps) → 最高 15fps，边界精度提升 3~7 倍
+     · 特征维度  1 → 4，抗误切（灯光闪烁、镜头小抖）显著增强
+     · 阈值策略  全局固定 → 分位数 + 局部对比 双条件自适应
+   ============================================================ */
+
+function percentile(arr, p){
+  if (!arr || !arr.length) return 0;
+  const s = Array.from(arr).sort((a, b) => a - b);
+  const i = Math.min(s.length - 1, Math.max(0, Math.round((s.length - 1) * p)));
+  return s[i];
+}
+
+/* 中位数：用于稳健统计（不受尖峰影响） */
+function median(arr){
+  if (!arr || !arr.length) return 0;
+  const s = Array.from(arr).sort((a, b) => a - b);
+  const mid = s.length >> 1;
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+
+/* 稳健标准差：MAD × 1.4826，等价于正态分布下的 σ，
+   但对少量尖峰不敏感——正是场景切分需要的特性。
+   （用普通 std 会被切点尖峰自己抬高阈值，导致漏检） */
+function robustSigma(arr, med){
+  if (!arr || !arr.length) return 0;
+  const dev = new Float32Array(arr.length);
+  for (let i = 0; i < arr.length; i++) dev[i] = Math.abs(arr[i] - med);
+  return 1.4826 * median(dev);
+}
+
+function normalizeHist(h){
+  let sum = 0;
+  for (let i = 0; i < h.length; i++) sum += h[i];
+  if (sum > 0) for (let i = 0; i < h.length; i++) h[i] /= sum;
+  return h;
+}
+
+/* 卡方距离，归一化到 0..1 */
+function chiSquare(h1, h2){
+  let s = 0;
+  for (let i = 0; i < h1.length; i++){
+    const a = h1[i], b = h2[i], d = a + b;
+    if (d > 1e-9) s += (a - b) * (a - b) / d;
+  }
+  return Math.min(1, s / 2);
+}
+
+/* 从一帧 ImageData 提取多特征指纹 */
+function extractFrameFeatures(imageData){
+  const { data, width, height } = imageData;
+  const n = width * height;
+  const grayHist = new Float32Array(32);
+  const hueHist  = new Float32Array(18);
+  const grayFull = new Uint8ClampedArray(n);
+
+  const FPW = 8, FPH = 8;
+  const fp = new Float32Array(FPW * FPH);
+  const cellSum = new Float32Array(FPW * FPH);
+  const cellCnt = new Float32Array(FPW * FPH);
+
+  let lumSum = 0;
+
+  for (let y = 0; y < height; y++){
+    for (let x = 0; x < width; x++){
+      const i = (y * width + x) << 2;
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      const gray = (r * 0.299 + g * 0.587 + b * 0.114) | 0;
+
+      grayFull[y * width + x] = gray;
+      grayHist[gray >> 3]++;      // 0..31
+      lumSum += gray;
+
+      // 色相：仅在有一定饱和度时统计，避免灰色噪声主导
+      const mx = r > g ? (r > b ? r : b) : (g > b ? g : b);
+      const mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
+      const d = mx - mn;
+      if (d > 24){
+        let h;
+        if (mx === r)      h = ((g - b) / d + 6) % 6;
+        else if (mx === g) h = (b - r) / d + 2;
+        else               h = (r - g) / d + 4;
+        hueHist[Math.min(17, (h * 3) | 0)]++;
+      }
+
+      const ci = ((y * FPH / height) | 0) * FPW + ((x * FPW / width) | 0);
+      cellSum[ci] += gray;
+      cellCnt[ci]++;
+    }
+  }
+  for (let i = 0; i < fp.length; i++) fp[i] = cellSum[i] / (cellCnt[i] || 1);
+
+  return {
+    grayHist: normalizeHist(grayHist),
+    hueHist:  normalizeHist(hueHist),
+    grayFull, fp, width, height,
+    meanLum: lumSum / n
+  };
+}
+
+/* 两帧之间的多维度差异 */
+function computeFrameDiff(a, b){
+  // 1) 像素级平均绝对差（抽样 1/3 加速）
+  let mad = 0, cnt = 0;
+  const ga = a.grayFull, gb = b.grayFull;
+  for (let i = 0; i < ga.length; i += 3){
+    const d = ga[i] - gb[i];
+    mad += d < 0 ? -d : d;
+    cnt++;
+  }
+  mad = mad / (cnt * 255);
+
+  // 2) 8×8 指纹差（空间结构变化）
+  let fpd = 0;
+  for (let i = 0; i < a.fp.length; i++){
+    const d = a.fp[i] - b.fp[i];
+    fpd += d < 0 ? -d : d;
+  }
+  fpd = fpd / (a.fp.length * 255);
+
+  // 3) 直方图卡方距离
+  const hg = chiSquare(a.grayHist, b.grayHist);
+  const hh = chiSquare(a.hueHist,  b.hueHist);
+
+  return {
+    mad, fpd, hg, hh,
+    total: 0.38 * mad + 0.24 * fpd + 0.24 * hg + 0.14 * hh
+  };
+}
+
+/* 回合精彩度：基于回合内平均画面变化量（运动强度）+ 时长合理性。
+   参考基准用「全体帧差中位数」= 该场比赛的常态运动水平，
+   因此 3 倍于常态运动的回合 ≈ 满分。 */
+function computeRating(motion, duration, base){
+  const ref = base || 1e-6;
+  const motionScore = Math.min(1, motion / (ref * 3));
+
+  let durScore;
+  if (duration < 3)        durScore = 0.25;
+  else if (duration <= 20) durScore = 1 - Math.abs(duration - 11) / 22;
+  else                     durScore = Math.max(0.35, 1 - (duration - 20) / 45);
+
+  const s = 0.62 * motionScore + 0.38 * durScore;
+  return Math.max(20, Math.min(100, Math.round(35 + s * 63)));
+}
+
+/* ============================================================
+   音频分析引擎 —— 回合切分的主信号
+   ------------------------------------------------------------
+   为什么声音比画面可靠：
+     · 回合内 = 连续击球声（短促高能脉冲）+ 球鞋摩擦 + 喘息 + 观众
+     · 回合间 = 安静期（准备发球、捡球、擦汗），能量明显塌陷
+   而画面帧差会被「慢动作回放」「观众席镜头切换」误判成回合边界。
+
+   管线：
+     1) decodeAudioData 解码音轨（只解码音频，视频轨被忽略）
+     2) 50ms 窗口 / 20ms 步进 → 逐帧 RMS，转 dB
+     3) 同时算「能量上升沿」flux，用于识别击球瞬态脉冲
+     4) 自适应阈值判定活跃帧 → 形态学闭运算填掉回合内换拍停顿
+     5) 连续安静段（> minGap）= 回合间隙 → 相邻间隙之间即一个回合
+   ============================================================ */
+
+/* 解码音轨并计算能量包络。
+   注意：解码后的 PCM 峰值内存 ≈ 时长(s) × 48000 × 声道 × 4B，
+   解码完立刻只保留包络数组，让大 buffer 尽快可被 GC。 */
+async function analyzeAudioEnvelope(onProgress){
+  const file = state.video.file;
+
+  if (onProgress) onProgress('读取音频数据', 0);
+  const arrayBuf = await file.arrayBuffer();
+
+  if (onProgress) onProgress('解码音轨', 0.15);
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) throw new Error('浏览器不支持 Web Audio API');
+  const actx = new AC();
+
+  let audioBuffer;
+  try {
+    audioBuffer = await new Promise((resolve, reject) => {
+      // 用 callback 形式以兼容 Safari（Promise 形式在旧版 Safari 不可用）
+      const p = actx.decodeAudioData(arrayBuf.slice(0), resolve, reject);
+      if (p && typeof p.then === 'function') p.then(resolve, reject);
+    });
+  } catch (e) {
+    throw new Error('音轨解码失败（可能无音轨或格式不支持）：' + (e.message || e));
+  }
+  if (actx.state !== 'closed') actx.close();
+
+  if (onProgress) onProgress('计算能量包络', 0.45);
+
+  const sr = audioBuffer.sampleRate;
+  const nCh = audioBuffer.numberOfChannels;
+  const len = audioBuffer.length;
+
+  // 混合成单声道（取所有声道平均），减少后续计算量
+  const ch0 = audioBuffer.getChannelData(0);
+  let data = ch0;
+  if (nCh > 1){
+    data = new Float32Array(len);
+    for (let c = 0; c < nCh; c++){
+      const ch = audioBuffer.getChannelData(c);
+      for (let i = 0; i < len; i++) data[i] += ch[i];
+    }
+    for (let i = 0; i < len; i++) data[i] /= nCh;
+  }
+
+  // 分帧：50ms 窗口、20ms 步进 → 时间分辨率 20ms，远高于画面的 0.1s
+  const win = Math.max(1, Math.round(sr * 0.05));
+  const hop = Math.max(1, Math.round(sr * 0.02));
+  const frames = Math.max(1, Math.floor((len - win) / hop));
+  const frameDur = hop / sr;
+
+  const rms  = new Float32Array(frames);
+  const peak = new Float32Array(frames);
+
+  for (let i = 0; i < frames; i++){
+    const off = i * hop;
+    let sum = 0, mx = 0;
+    // 抽样步进 2 加速，对 RMS 统计无实质影响
+    for (let j = 0; j < win; j += 2){
+      const v = data[off + j];
+      sum += v * v;
+      const a = v < 0 ? -v : v;
+      if (a > mx) mx = a;
+    }
+    rms[i]  = Math.sqrt(sum / (win / 2));
+    peak[i] = mx;
+  }
+
+  // 转 dB，便于用统一尺度设阈值
+  const db = new Float32Array(frames);
+  for (let i = 0; i < frames; i++) db[i] = 20 * Math.log10(rms[i] + 1e-9);
+
+  // 平滑：原始 dB 逐帧抖动大，直接用会让噪声被误判成击球脉冲。
+  // 100ms 移动平均后，随机噪声被抹平，击球这类持续能量抬升仍能保留。
+  const smoothWin = Math.max(1, Math.round(0.1 / frameDur));
+  const dbS = movingAverage(db, smoothWin);
+
+  // 能量上升沿：基于平滑后的包络，捕捉击球瞬态
+  const flux = new Float32Array(frames);
+  for (let i = 1; i < frames; i++){
+    const d = dbS[i] - dbS[i - 1];
+    flux[i] = d > 0 ? d : 0;
+  }
+
+  // 频谱特征：识别「解说 → 硬切 → 解说」这类没有静音的音频不连续。
+  // 这是集锦切点的主信号之一，只靠上面的能量包络看不出来。
+  let spec = null;
+  try {
+    if (onProgress) onProgress('计算频谱特征', 0.7);
+    spec = computeSpectralFeatures(data, sr);
+  } catch (e){
+    console.warn('[spec]', e);
+  }
+
+  if (onProgress) onProgress('音频分析完成', 1);
+  return { db, dbS, rms, peak, flux, frameDur, frames, sr, spec, duration: audioBuffer.duration };
+}
+
+/* 居中移动平均 */
+function movingAverage(arr, win){
+  const n = arr.length;
+  const out = new Float32Array(n);
+  const half = Math.max(1, win >> 1);
+  // 前缀和，避免 O(n·win)
+  const pre = new Float64Array(n + 1);
+  for (let i = 0; i < n; i++) pre[i + 1] = pre[i] + arr[i];
+  for (let i = 0; i < n; i++){
+    const a = Math.max(0, i - half);
+    const b = Math.min(n, i + half + 1);
+    out[i] = (pre[b] - pre[a]) / (b - a);
+  }
+  return out;
+}
+
+/* 形态学闭运算：先膨胀再腐蚀。
+   作用是把回合内的短暂静音（换拍间隙、球飞行途中）填平，
+   避免一个回合被切成好几段。这是音频切分能不能用的关键一步。 */
+function morphClose(binary, radius){
+  const n = binary.length;
+  const out = new Uint8Array(n);
+  // 膨胀
+  const dilated = new Uint8Array(n);
+  let lastOne = -Infinity;
+  for (let i = 0; i < n; i++){
+    if (binary[i]) lastOne = i;
+    dilated[i] = (i - lastOne <= radius) ? 1 : 0;
+  }
+  let nextOne = Infinity;
+  for (let i = n - 1; i >= 0; i--){
+    if (binary[i]) nextOne = i;
+    if (nextOne - i <= radius) dilated[i] = 1;
+  }
+  // 腐蚀
+  let lastZero = -Infinity;
+  for (let i = 0; i < n; i++){
+    if (!dilated[i]) lastZero = i;
+    out[i] = (i - lastZero <= radius) ? 0 : 1;
+  }
+  let nextZero = Infinity;
+  for (let i = n - 1; i >= 0; i--){
+    if (!dilated[i]) nextZero = i;
+    if (nextZero - i <= radius) out[i] = 0;
+  }
+  return out;
+}
+
+/* 从音频包络找「回合间隙」= 持续的安静段。
+   返回 [{start, end, center}]，单位秒。 */
+function detectQuietSegments(audio, cfg, sens, strict){
+  // 用平滑后的包络判定，原始 db 噪声太大
+  const dbS = audio.dbS || audio.db;
+  const { flux, frameDur, frames } = audio;
+
+  // 自适应阈值：底噪（15 分位）与活跃水平（90 分位）之间的跨度，
+  // 灵敏度决定阈值落在这个跨度的哪个位置。
+  // 方向要正确：阈值越高 → 越多帧被判安静 → 间隙越多 → 切得越细。
+  const floorDb = percentile(dbS, 0.15);
+  const spanDb  = percentile(dbS, 0.90) - floorDb;
+  // strict（合集模式）：阈值压得更低，只有真正很安静的段落才算间隙。
+  // 合集里不同片段音量差异大，阈值稍高就会把整个低音量片段误判成「安静」。
+  const ratio   = Math.min(0.85, Math.max(0.10, (strict ? 0.20 : 0.35) * sens));
+  const thr     = floorDb + spanDb * ratio;
+
+  // 击球脉冲阈值：固定基准，只抓真正的瞬态（≥5dB 的突变），
+  // 不随灵敏度变化，避免在安静区被噪声触发。
+  const fluxThr = Math.max(5, percentile(flux, 0.93));
+
+  // 逐帧判活跃
+  const active = new Uint8Array(frames);
+  for (let i = 0; i < frames; i++){
+    active[i] = (dbS[i] > thr || flux[i] > fluxThr) ? 1 : 0;
+  }
+
+  // 闭运算：填掉回合内 < minGap 的短静音（用 minGap 的一半作为半径）
+  const radius = Math.max(1, Math.round((cfg.minGap * 0.5) / frameDur));
+  const closed = morphClose(active, radius);
+
+  // 找连续安静段
+  const gaps = [];
+  let s = -1;
+  for (let i = 0; i < frames; i++){
+    if (!closed[i]){
+      if (s < 0) s = i;
+    } else {
+      if (s >= 0){
+        const gs = s * frameDur, ge = i * frameDur;
+        if (ge - gs >= cfg.minGap) gaps.push({ start: gs, end: ge, center: (gs + ge) / 2 });
+        s = -1;
+      }
+    }
+  }
+  if (s >= 0){
+    const gs = s * frameDur, ge = frames * frameDur;
+    if (ge - gs >= cfg.minGap) gaps.push({ start: gs, end: ge, center: (gs + ge) / 2 });
+  }
+
+  return { gaps, thr, floorDb, spanDb, fluxThr, closed, frameDur };
+}
+
+/* 检测音频不连续点。
+   剪辑合集里，片段与片段的接缝往往没有安静期，但会有这些痕迹：
+     · 电平突变 —— 不同素材录音音量/设备不同，接缝处平均能量突然抬高或压低
+     · 极短静音 —— 拼接时留的一两帧空白
+   用「前后各 0.3 秒的平均能量差」来找这类接缝。 */
+function detectAudioDiscontinuity(audio, cfg, sens){
+  const { dbS, frameDur, frames } = audio;
+  // 窗口 0.8s：太短会被片段内的击球起伏干扰，实测 0.8s 命中率最高
+  const w = Math.max(2, Math.round(0.8 / frameDur));
+
+  // 前缀和，O(n) 算滑窗均值
+  const pre = new Float64Array(frames + 1);
+  for (let i = 0; i < frames; i++) pre[i + 1] = pre[i] + dbS[i];
+
+  const disc = new Float32Array(frames);
+  for (let i = w; i < frames - w; i++){
+    const before = (pre[i] - pre[i - w]) / w;
+    const after  = (pre[i + w] - pre[i]) / w;
+    disc[i] = Math.abs(after - before);
+  }
+
+  // 稳健阈值（只对有效位置统计）
+  const vals = [];
+  for (let i = w; i < frames - w; i++) vals.push(disc[i]);
+  const med = median(vals);
+  const sig = robustSigma(vals, med);
+  // k=4 由参数扫描得出（对比 k=3/4/5/6/8 × 窗口 0.3/0.5/0.8s，
+  // k=4 + 0.8s 在多种电平差下综合得分最高）
+  const k   = 4 / sens;                    // 灵敏度越高 → 阈值越低 → 切得越细
+  const thr = med + k * sig;
+
+  const points = [];
+  const minGapFrames = Math.max(1, Math.round((cfg.minRally * 0.8) / frameDur));
+  let last = -Infinity;
+  for (let i = w; i < frames - w; i++){
+    if (disc[i] < thr) continue;
+    if (i - last < minGapFrames) continue;
+    // 取局部极大，避免同一个接缝被记多次
+    let isMax = true;
+    for (let j = Math.max(0, i - 3); j <= Math.min(frames - 1, i + 3); j++){
+      if (disc[j] > disc[i]){ isMax = false; break; }
+    }
+    if (!isMax) continue;
+    points.push({ at: i * frameDur, strength: disc[i] });
+    last = i;
+  }
+  return { points, disc, thr, med, sig };
+}
+
+/* 检测画面硬切。
+   合集里相邻两个片段通常来自不同机位/场次，画面会被整个换掉，
+   帧差形成远高于「片段内运动」的尖峰（后者只是球员移动、镜头缓推）。 */
+function detectVideoCuts(v, cfg, sens){
+  const { diffs, dt } = v;
+  const med = median(diffs);
+  const sig = robustSigma(diffs, med);
+  // 阈值比普通「画面变化」高得多，只抓真正的整屏切换
+  const k   = 10 / sens;
+  const thr = med + k * sig;
+
+  const points = [];
+  const minGapFrames = Math.max(1, Math.round((cfg.minRally * 0.8) / dt));
+  let last = -Infinity;
+  for (let i = 1; i < diffs.length; i++){
+    if (diffs[i] < thr) continue;
+    if (i - last < minGapFrames) continue;
+    let isMax = true;
+    for (let j = Math.max(0, i - 2); j <= Math.min(diffs.length - 1, i + 2); j++){
+      if (diffs[j] > diffs[i]){ isMax = false; break; }
+    }
+    if (!isMax) continue;
+    points.push({ at: i * dt, strength: diffs[i] });
+    last = i;
+  }
+  return { points, thr, med, sig };
+}
+
+/* 找一段区间内第一次明显的击球声（能量瞬态突增）。
+   这是「这一分真正开始」的时刻——比用安静期结束点准得多：
+   安静期结束后球员往往还在擦汗、走位，真正的回合从第一拍才开始。 */
+function findFirstHit(from, to, a, fluxThr){
+  if (!a) return null;
+  const { flux, frameDur } = a;
+  const i0 = Math.max(0, Math.round(from / frameDur));
+  const i1 = Math.min(flux.length - 1, Math.round(to / frameDur));
+  for (let i = i0; i <= i1; i++){
+    if (flux[i] > fluxThr) return i * frameDur;
+  }
+  return null;
+}
+
+/* 抽帧 + 特征提取（画面通道） */
+async function extractVideoFeatures(basePct, spanPct){
+  const preset = ANALYSIS_PRESETS[state.analysisQuality] || ANALYSIS_PRESETS.standard;
+  const duration = state.video.duration;
+
+  const v = document.createElement('video');
+  v.src = state.video.url;
+  v.muted = true;
+  v.preload = 'auto';
+  await new Promise(r => v.onloadedmetadata = r);
+
+  // 采样计划：目标 fps，受 maxFrames 上限约束（长视频自动降密）
+  const sampleCount = Math.max(60, Math.min(preset.maxFrames, Math.round(duration * preset.fps)));
+  const dt = duration / Math.max(1, sampleCount - 1);
+  const effFps = 1 / dt;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = preset.workW;
+  canvas.height = preset.workH;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  $('#proc-desc').textContent = `${preset.label}模式 · 逐帧提取画面特征`;
+
+  const times = new Float32Array(sampleCount);
+  const feats = new Array(sampleCount);
+  const thumbs = new Array(sampleCount);
+  const t0 = performance.now();
+  for (let i = 0; i < sampleCount; i++){
+    const t = i * dt;
+    times[i] = t;
+    await seekTo(v, t);
+    ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+    thumbs[i] = canvas.toDataURL('image/jpeg', 0.45);   // 小图，供回合缩略图复用
+    feats[i] = extractFrameFeatures(ctx.getImageData(0, 0, canvas.width, canvas.height));
+
+    const pct = Math.round((i + 1) / sampleCount * spanPct);
+    $('#proc-bar').style.width = (basePct + pct) + '%';
+    const elapsed = (performance.now() - t0) / 1000;
+    const eta = i > 3 ? (elapsed / (i + 1)) * (sampleCount - i - 1) : 0;
+    $('#proc-step').textContent =
+      `帧特征 ${i + 1}/${sampleCount} · ${effFps.toFixed(1)}fps · ${basePct + pct}%` +
+      (eta > 1 ? ` · 约剩 ${Math.ceil(eta)}s` : '');
+  }
+
+  $('#proc-step').textContent = '计算帧间差异…';
+  const diffs = new Float32Array(sampleCount - 1);
+  for (let i = 0; i < diffs.length; i++){
+    diffs[i] = computeFrameDiff(feats[i], feats[i + 1]).total;
+  }
+
+  return { times, feats, diffs, thumbs, dt, effFps, duration, sampleCount, videoEl: v };
+}
+
+/* ============== 分析主流程（画面 / 声音 / 融合） ============== */
+async function analyzeVideo(){
+  const duration = state.video.duration;
+  $('#proc-title').textContent = '正在分析比赛';
+
+  let vData = null, aData = null;
+  let src = state.analysisSource;
+
+  // ---- 声音通道 ----
+  if (src === 'audio' || src === 'fused'){
+    const sizeMB = state.video.file.size / 1024 / 1024;
+    $('#proc-desc').textContent = `提取音轨（文件 ${sizeMB.toFixed(0)}MB），分析声音能量…`;
+    try {
+      aData = await analyzeAudioEnvelope((label, p) => {
+        $('#proc-desc').textContent = '声音能量分析 · ' + label;
+        $('#proc-bar').style.width = Math.round(p * 45) + '%';
+        $('#proc-step').textContent = label;
+      });
+    } catch (e){
+      console.warn('[audio]', e);
+      if (src === 'audio'){
+        toast('声音分析失败，已改用画面分析');
+        state.analysisSource = 'video';
+      } else {
+        toast('声音分析失败，仅使用画面信号');
+      }
+      aData = null;
+    }
+  }
+
+  // ---- 画面通道 ----
+  src = state.analysisSource;
+  if (src === 'video' || src === 'fused'){
+    vData = await extractVideoFeatures(src === 'fused' ? 45 : 0, src === 'fused' ? 45 : 88);
+  }
+
+  featureCache = { v: vData, a: aData, duration };
+
+  // ---- 切分 ----
+  $('#proc-title').textContent = '生成回合';
+  $('#proc-desc').textContent = '检测切点…';
+  detectRallies();
+
+  // ---- 缩略图兜底：纯声音模式没预抽帧，按需补抽 ----
+  await ensureThumbnails(vData);
+
+  $('#proc-bar').style.width = '100%';
+  const modeLabel = { video:'画面', audio:'声音', fused:'画面+声音' }[state.analysisSource];
+  const prec = state.analysisSource === 'audio'
+    ? (aData ? aData.frameDur : 0)
+    : (vData ? vData.dt : 0);
+  $('#proc-step').textContent =
+    `✓ ${state.rallies.length} 个回合 · ${modeLabel}信号 · 精度 ${prec.toFixed(2)}s`;
+  await new Promise(r => setTimeout(r, 400));
+}
+
+/* 为缺缩略图的回合按需抽帧（纯声音模式专用） */
+async function ensureThumbnails(vData){
+  if (!state.rallies.some(r => !r.thumbnail)) return;
+
+  let v = vData && vData.videoEl;
+  if (!v){
+    v = document.createElement('video');
+    v.src = state.video.url;
+    v.muted = true;
+    v.preload = 'auto';
+  }
+  if (!v.duration) await new Promise(r => v.onloadedmetadata = r);
+
+  const c = document.createElement('canvas');
+  c.width = 320; c.height = 180;
+  const cx = c.getContext('2d');
+  const need = state.rallies.filter(r => !r.thumbnail);
+
+  for (let i = 0; i < need.length; i++){
+    const r = need[i];
+    await seekTo(v, (r.coreStart + r.coreEnd) / 2);
+    cx.drawImage(v, 0, 0, c.width, c.height);
+    r.thumbnail = c.toDataURL('image/jpeg', 0.7);
+    $('#proc-step').textContent = `缩略图 ${i + 1}/${need.length}`;
+    $('#proc-bar').style.width = (88 + Math.round((i + 1) / need.length * 12)) + '%';
+  }
+  // 缩略图齐了再存一次，历史记录列表才有封面（前面的保存发生在这之前）
+  if (need.length) scheduleSave();
+}
+
+/* 发球对齐：把段起点对齐到「动作真正开始」的那一刻。
+   音频给出的起点是安静期结束，但发球动作（抛球、引拍、挥拍）通常还晚一点，
+   直接用会让片段开头带一段静止画面。
+   做法：在 [s-0.4, s+2.0] 内找画面变化首次连续抬升超过 base+2σ 的位置。
+   找不到就保持原值，不强行移动。 */
+function refineServeStart(s, e, v, base, sig){
+  if (!v || !v.diffs) return s;
+  const { diffs, dt } = v;
+  const from = Math.max(0, s - 0.4);
+  const to   = Math.min(e, s + 2.0);
+  const i0 = Math.max(0, Math.round(from / dt));
+  const i1 = Math.min(diffs.length - 1, Math.round(to / dt));
+  if (i1 - i0 < 4) return s;
+
+  const th = base + 2.0 * sig;
+  // 连续 3 帧超阈值才算「开始动了」，避免单帧噪声
+  for (let i = i0; i <= i1 - 3; i++){
+    if (diffs[i] > th && diffs[i + 1] > th && diffs[i + 2] > th){
+      return i * dt;
+    }
+  }
+  return s;
+}
+
+/* 画面通道的峰值检测。与灵敏度解耦，供融合模式复用。 */
+function detectVideoPeaks(v, cfg, sens){
+  const { times, diffs, effFps } = v;
+  const med   = median(diffs);
+  const sigma = robustSigma(diffs, med);
+  // k=15 为保守基准：默认宁可少切，也不要给用户一堆碎片回合
+  const k     = 15 / sens;
+  const hiTh    = med + k * sigma;
+  const floorTh = med + 2.5 * sigma;
+  const win = Math.max(3, Math.round(effFps * 0.75));
+
+  const cuts = [];
+  const peakIdx = [];
+  let lastB = 0;
+
+  for (let i = 0; i < diffs.length; i++){
+    const t = times[i + 1];
+    if (t - lastB < cfg.minRally) continue;
+
+    let ls = 0, lc = 0;
+    for (let j = Math.max(0, i - win); j <= Math.min(diffs.length - 1, i + win); j++){
+      ls += diffs[j]; lc++;
+    }
+    const localAvg = ls / lc;
+
+    if (diffs[i] >= hiTh && diffs[i] >= floorTh && diffs[i] >= localAvg * 1.45){
+      // 峰值 ±2 帧内取真正极大点 → 帧级精度
+      let best = i;
+      for (let j = Math.max(0, i - 2); j <= Math.min(diffs.length - 1, i + 2); j++){
+        if (diffs[j] > diffs[best]) best = j;
+      }
+      const bt = times[best + 1];
+      if (bt - lastB >= cfg.minRally){
+        cuts.push(bt);
+        peakIdx.push(best);
+        lastB = bt;
+      }
+    }
+  }
+  return { cuts, peakIdx, med, sigma, hiTh, floorTh, k };
+}
+
+/* 回合活跃度：有画面用平均帧差，只有声音用「超出底噪的平均 dB」。
+   两者都归一到同一量纲，供精彩度评分与 UI 强度条使用。 */
+function rallyActivity(coreStart, coreEnd, v, a, audioFloor){
+  if (v){
+    const { diffs, dt } = v;
+    const i0 = Math.max(0, Math.round(coreStart / dt));
+    const i1 = Math.min(diffs.length - 1, Math.round(coreEnd / dt) - 1);
+    let ms = 0, mc = 0;
+    for (let k = i0; k <= i1; k++){ ms += diffs[k]; mc++; }
+    return { value: mc > 0 ? ms / mc : 0, source: 'video' };
+  }
+  if (a){
+    const { db, frameDur } = a;
+    const i0 = Math.max(0, Math.round(coreStart / frameDur));
+    const i1 = Math.min(db.length - 1, Math.round(coreEnd / frameDur) - 1);
+    let sum = 0, mc = 0;
+    for (let k = i0; k <= i1; k++){ sum += Math.max(0, db[k] - audioFloor); mc++; }
+    return { value: mc > 0 ? sum / mc : 0, source: 'audio' };
+  }
+  return { value: 0, source: 'none' };
+}
+
+/* 切分主函数：按信号源选策略 → 合并/拆分 → 构造回合。
+   只依赖 featureCache 与 (sport, sensitivity, pre/postBuffer)，
+   所以调整灵敏度时无需重新解码。 */
+/* ============================================================
+   多模态切点检测（画面突变 + 音频不连续）
+   ------------------------------------------------------------
+   集锦里相邻两个回合往往来自原始比赛的不同时间点，拼接处同时存在：
+     · 画面整屏变化（不同机位 / 不同时刻）
+     · 音频声学突变（上一段解说 → 硬切 → 下一段解说）
+   关键：不要只检测静音。回合之间常常没有静音，只有「不连续」。
+   ============================================================ */
+
+/* 基-2 迭代 FFT（原地，n 必须为 2 的幂） */
+function fftInPlace(re, im){
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++){
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j){
+      let t = re[i]; re[i] = re[j]; re[j] = t;
+      t = im[i]; im[i] = im[j]; im[j] = t;
+    }
+  }
+  for (let len = 2; len <= n; len <<= 1){
+    const ang = -2 * Math.PI / len;
+    const wr = Math.cos(ang), wi = Math.sin(ang);
+    const half = len >> 1;
+    for (let i = 0; i < n; i += len){
+      let cr = 1, ci = 0;
+      for (let k = 0; k < half; k++){
+        const ar = re[i + k], ai = im[i + k];
+        const br = re[i + k + half], bi = im[i + k + half];
+        const tr = br * cr - bi * ci;
+        const ti = br * ci + bi * cr;
+        re[i + k] = ar + tr;        im[i + k] = ai + ti;
+        re[i + k + half] = ar - tr; im[i + k + half] = ai - ti;
+        const ncr = cr * wr - ci * wi;
+        ci = cr * wi + ci * wr; cr = ncr;
+      }
+    }
+  }
+}
+
+/* Mel 滤波器组（三角窗，等 mel 间隔） */
+function buildMelBank(sr, nFft, nMels, fMin, fMax){
+  const nBins = nFft >> 1;
+  const melMin = 2595 * Math.log10(1 + fMin / 700);
+  const melMax = 2595 * Math.log10(1 + fMax / 700);
+  const pts = new Float32Array(nMels + 2);
+  for (let i = 0; i < nMels + 2; i++){
+    const m = melMin + (melMax - melMin) * i / (nMels + 1);
+    pts[i] = 700 * (Math.pow(10, m / 2595) - 1) / (sr / 2) * nBins;
+  }
+  const banks = [];
+  for (let m = 0; m < nMels; m++){
+    const w = new Float32Array(nBins);
+    const l = pts[m], c = pts[m + 1], r = pts[m + 2];
+    for (let b = Math.max(0, Math.floor(l)); b < Math.min(nBins, Math.ceil(r)); b++){
+      if (b >= l && b <= c)      w[b] = (b - l) / Math.max(1e-9, c - l);
+      else if (b >= c && b <= r) w[b] = (r - b) / Math.max(1e-9, r - c);
+    }
+    banks.push(w);
+  }
+  return banks;
+}
+
+/* DCT-II，取前 nOut 个系数（MFCC 用） */
+function dct2(vec, nOut){
+  const N = vec.length, out = new Float32Array(nOut);
+  for (let k = 0; k < nOut; k++){
+    let s = 0;
+    for (let n = 0; n < N; n++) s += vec[n] * Math.cos(Math.PI * k * (2 * n + 1) / (2 * N));
+    out[k] = s;
+  }
+  return out;
+}
+
+/* 逐窗频谱特征：Spectral Flux / MFCC 距离 / 频谱差异 / RMS。
+   为控制开销：先 4:1 抽取（≈11kHz，足够覆盖人声与现场声），
+   再按 256 点窗（≈23ms）/ 128 点步进（≈11.6ms）做 FFT。 */
+function computeSpectralFeatures(data, sr){
+  const D = 4;
+  const n = Math.floor(data.length / D);
+  if (n < 1024) return null;
+  const dec = new Float32Array(n);
+  for (let i = 0; i < n; i++){
+    let s = 0;
+    for (let k = 0; k < D; k++) s += data[i * D + k];
+    dec[i] = s / D;
+  }
+  const effSr = sr / D;
+  const N = 256, H = 128;
+  const frames = Math.max(1, Math.floor((n - N) / H) + 1);
+  const nBins = N >> 1;
+  const banks = buildMelBank(effSr, N, 20, 60, Math.max(200, Math.min(6000, effSr / 2 - 100)));
+  const nMels = banks.length;
+
+  const hann = new Float32Array(N);
+  for (let i = 0; i < N; i++) hann[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (N - 1));
+
+  const magAll = new Float32Array(frames * nBins);
+  const rms = new Float32Array(frames);
+  const re = new Float32Array(N), im = new Float32Array(N);
+  for (let f = 0; f < frames; f++){
+    const off = f * H;
+    let e = 0;
+    for (let i = 0; i < N; i++){
+      const x = dec[off + i] * hann[i];
+      re[i] = x; im[i] = 0; e += x * x;
+    }
+    rms[f] = Math.sqrt(e / N);
+    fftInPlace(re, im);
+    const base = f * nBins;
+    for (let b = 0; b < nBins; b++) magAll[base + b] = Math.sqrt(re[b] * re[b] + im[b] * im[b]) + 1e-10;
+  }
+
+  // MFCC（20 个 mel 带 → 13 维倒谱）
+  // 同时保留 log-mel 本身：硬切检测需要「音色的持续性改变」，
+  // 而 flux / mfccDist 这类逐窗差分只反映瞬时冲激，必须留原始特征才能区分。
+  const mfcc = new Float32Array(frames * 13);
+  const mel = new Float32Array(frames * nMels);
+  const logE = new Float32Array(nMels);
+  for (let f = 0; f < frames; f++){
+    const base = f * nBins;
+    for (let m = 0; m < nMels; m++){
+      let s = 0; const w = banks[m];
+      for (let k = 0; k < nBins; k++) s += magAll[base + k] * w[k];
+      logE[m] = Math.log(s + 1e-10);
+    }
+    mel.set(logE, f * nMels);
+    mfcc.set(dct2(logE, 13), f * 13);
+  }
+
+  const flux = new Float32Array(frames);
+  const mfccDist = new Float32Array(frames);
+  const specDiff = new Float32Array(frames);
+  for (let f = 1; f < frames; f++){
+    let sf = 0, dot = 0, na = 0, nb = 0;
+    const pa = (f - 1) * nBins, pb = f * nBins;
+    for (let k = 0; k < nBins; k++){
+      const x = magAll[pa + k], y = magAll[pb + k];
+      const d = y - x;
+      if (d > 0) sf += d;
+      dot += x * y; na += x * x; nb += y * y;
+    }
+    flux[f] = sf / nBins;
+    specDiff[f] = 1 - dot / (Math.sqrt(na) * Math.sqrt(nb) + 1e-10);
+    let md = 0;
+    for (let k = 0; k < 13; k++){
+      const d = mfcc[f * 13 + k] - mfcc[(f - 1) * 13 + k];
+      md += d * d;
+    }
+    mfccDist[f] = Math.sqrt(md);
+  }
+
+  return { flux, mfccDist, specDiff, rms, mel, nMels, frames, hopDur: H / effSr, effSr };
+}
+
+/* 稳健拉伸到 0~1：中位数 → 0，98 分位 → 1。
+   这样"常态"贴 0，只有真正突变的尖峰接近 1，便于跨视频统一阈值。 */
+function robustNormalize(arr){
+  const lo = percentile(arr, 0.50);
+  const hi = percentile(arr, 0.98);
+  const span = Math.max(1e-9, hi - lo);
+  const out = new Float32Array(arr.length);
+  for (let i = 0; i < arr.length; i++){
+    const v = (arr[i] - lo) / span;
+    out[i] = v < 0 ? 0 : (v > 1 ? 1 : v);
+  }
+  return out;
+}
+
+/* 全局 SSIM（单窗口，灰度）。返回 -1~1，1 = 完全相同 */
+function ssimGray(a, b){
+  const n = Math.min(a.length, b.length);
+  if (!n) return 1;
+  let ma = 0, mb = 0;
+  for (let i = 0; i < n; i++){ ma += a[i]; mb += b[i]; }
+  ma /= n; mb /= n;
+  let va = 0, vb = 0, cov = 0;
+  for (let i = 0; i < n; i++){
+    const da = a[i] - ma, db = b[i] - mb;
+    va += da * da; vb += db * db; cov += da * db;
+  }
+  va /= n; vb /= n; cov /= n;
+  const C1 = 6.5025, C2 = 58.5225;   // (0.01*255)^2, (0.03*255)^2
+  const num = (2 * ma * mb + C1) * (2 * cov + C2);
+  const den = (ma * ma + mb * mb + C1) * (va + vb + C2);
+  const s = num / (den + 1e-12);
+  return s < -1 ? -1 : (s > 1 ? 1 : s);
+}
+
+/* 画面变化分 VisualChangeScore（0~1）
+   组成：直方图差异 + (1 - SSIM) + 帧间像素差 */
+function computeVisualChangeScores(v){
+  if (!v || !v.feats || v.feats.length < 2) return null;
+  const feats = v.feats, n = feats.length - 1;
+  const mad = new Float32Array(n), hist = new Float32Array(n), ssimC = new Float32Array(n);
+  for (let i = 0; i < n; i++){
+    const d = computeFrameDiff(feats[i], feats[i + 1]);
+    mad[i] = d.mad;
+    hist[i] = 0.6 * d.hg + 0.4 * d.hh;
+    ssimC[i] = Math.max(0, 1 - ssimGray(feats[i].grayFull, feats[i + 1].grayFull));
+  }
+  /* 孤立性：硬切是「单帧突变」——只有切点那一对帧差异巨大，前后邻居都很小；
+     而球员跑动 / 镜头推拉 / 慢动作会让连续好几对帧都保持高差异。
+     所以用「本帧差异 ÷ 邻域中位数」量化尖峰的孤立程度：
+       硬切 → 数倍于邻域；运动 → 与邻域持平（≈1）。 */
+  const R = 3;
+  const iso = new Float32Array(n);
+  const nb = new Float32Array(2 * R);
+  for (let i = 0; i < n; i++){
+    let c = 0;
+    for (let k = -R; k <= R; k++){
+      if (k === 0) continue;
+      const j = i + k;
+      if (j >= 0 && j < n) nb[c++] = hist[j];
+    }
+    if (!c){ iso[i] = 1; continue; }
+    const sub = nb.subarray(0, c);
+    sub.sort();
+    iso[i] = hist[i] / (sub[c >> 1] + 1e-3);
+  }
+
+  /* SSIM 绝对判据：硬切时前后两帧几乎无关，SSIM 会掉到 0.3 以下；
+     跑动/推拉最多让它掉到 0.6~0.8。所以这里用绝对阈值而非相对归一化，
+     不依赖整段视频的分布——这正是跨视频稳定的关键。 */
+  const ssimAbs = new Float32Array(n);
+  for (let i = 0; i < n; i++) ssimAbs[i] = Math.max(0, Math.min(1, (ssimC[i] - 0.35) / 0.45));
+
+  const nMad = robustNormalize(mad), nHist = robustNormalize(hist), nSsim = robustNormalize(ssimC);
+  const nIso = robustNormalize(iso);
+  const score = new Float32Array(n);
+  for (let i = 0; i < n; i++){
+    score[i] = 0.30 * nIso[i] + 0.30 * ssimAbs[i] + 0.25 * nHist[i] + 0.15 * nSsim[i];
+  }
+  return { score, dt: v.dt, n, parts: { mad: nMad, hist: nHist, ssim: nSsim, iso: nIso, ssimAbs } };
+}
+
+/* ---------------- 滑动中位滤波 ----------------
+   这是本项目最关键的一步，先讲清楚为什么必须有它：
+
+   集锦里「击球声」和「剪辑点」在原始信号上长得很像——都是声音突然变大。
+   但二者的物理本质完全不同：
+     · 击球：20~50ms 的瞬态冲激。它前前后后的背景（场地混响、解说音色、
+            底噪）没有任何变化，只是一个尖脉冲。
+     · 剪辑：从切点开始，之后几百毫秒的**整体统计特性**换了一套——
+            解说音色、环境混响、底噪电平、频谱包络全变了。是持续性改变。
+
+   所以判据不该是「这一帧比上一帧大多少」（那样每次击球都爆表），
+   而应是「切点前后的**背景统计**差多少」。滑动中位滤波正好做这件事：
+   窗口内取中位数，短于窗口一半的冲激被完全抹掉，而阶跃会被保留。 */
+function medianFilter1d(src, n, win){
+  const out = new Float32Array(n);
+  const half = Math.max(1, win >> 1);
+  const buf = new Float32Array(win);
+  for (let i = 0; i < n; i++){
+    const a = Math.max(0, i - half), b = Math.min(n - 1, i + half);
+    const len = b - a + 1;
+    for (let k = 0; k < len; k++) buf[k] = src[a + k];
+    const sub = buf.subarray(0, len);
+    sub.sort();
+    out[i] = sub[len >> 1];
+  }
+  return out;
+}
+
+/* 多通道版：mel 矩阵按频带独立做时间中位滤波 */
+function medianFilterChannels(mat, n, ch, win){
+  const out = new Float32Array(mat.length);
+  const half = Math.max(1, win >> 1);
+  const buf = new Float32Array(win);
+  for (let c = 0; c < ch; c++){
+    for (let i = 0; i < n; i++){
+      const a = Math.max(0, i - half), b = Math.min(n - 1, i + half);
+      const len = b - a + 1;
+      for (let k = 0; k < len; k++) buf[k] = mat[(a + k) * ch + c];
+      const sub = buf.subarray(0, len);
+      sub.sort();
+      out[i * ch + c] = sub[len >> 1];
+    }
+  }
+  return out;
+}
+
+/* 音频「阶跃」分 AudioChangeScore（0~1）
+   三级抗冲激：
+     ① 按 ~90ms 分块，块内取中位数 —— 击球只占块的很小一部分
+     ② 逐通道滑动中位滤波（~450ms）—— 抹掉残余冲激
+     ③ 对滤波后的序列求相邻差 —— 剩下的只有「背景音色/电平的阶跃」= 剪辑点
+   输出两项：音色改变（log-mel 余弦距离）+ 背景电平改变（dB 差）。 */
+function computeAudioChangeScores(a){
+  const sp = a && a.spec;
+  if (!sp || !sp.mel) return null;
+  const { mel, nMels, frames, hopDur, rms } = sp;
+
+  const blk = Math.max(1, Math.round(0.09 / hopDur));        // ≈90ms
+  const nB = Math.max(4, Math.floor(frames / blk));
+  const blockDur = blk * hopDur;
+
+  // ① 块内中位数
+  const melB = new Float32Array(nB * nMels);
+  const dbB  = new Float32Array(nB);
+  const tmp  = new Float32Array(blk);
+  for (let b = 0; b < nB; b++){
+    const f0 = b * blk;
+    for (let m = 0; m < nMels; m++){
+      for (let k = 0; k < blk; k++) tmp[k] = mel[(f0 + k) * nMels + m];
+      const sub = tmp.subarray(0, blk);
+      sub.sort();
+      melB[b * nMels + m] = sub[blk >> 1];
+    }
+    for (let k = 0; k < blk; k++) tmp[k] = 20 * Math.log10(rms[f0 + k] + 1e-9);
+    const sub = tmp.subarray(0, blk);
+    sub.sort();
+    dbB[b] = sub[blk >> 1];
+  }
+
+  // ② 滑动中位滤波
+  const mfW = Math.max(3, Math.round(0.45 / blockDur));
+  const melM = medianFilterChannels(melB, nB, nMels, mfW);
+  const dbM  = medianFilter1d(dbB, nB, mfW);
+
+  /* ③ 以块 b 为界，比较「左窗」与「右窗」的中位统计。
+     用前后各 ~280ms 的窗口中位数（而不是相邻两个块），是为了把背景的
+     随机起伏也一起平均掉 —— 只剩真正的阶跃能突出来。 */
+  const W = Math.max(2, Math.round(0.28 / blockDur));
+  const cosD = new Float32Array(nB);   // 音色改变
+  const dbD  = new Float32Array(nB);   // 背景电平改变
+  const lvec = new Float32Array(nMels), rvec = new Float32Array(nMels);
+  const lbuf = new Float32Array(W * 2), rbuf = new Float32Array(W * 2);
+
+  for (let b = 1; b < nB - 1; b++){
+    const la = Math.max(0, b - W), ra = Math.min(nB - 1, b + W - 1);
+    const ln = b - la, rn = ra - b + 1;
+    if (ln < 2 || rn < 2){ cosD[b] = 0; dbD[b] = 0; continue; }   // 首尾不给切点
+
+    // 左窗中位向量 / 右窗中位向量（逐 mel 通道取中位数）
+    for (let m = 0; m < nMels; m++){
+      for (let i = 0; i < ln; i++) lbuf[i] = melM[(la + i) * nMels + m];
+      const ls = lbuf.subarray(0, ln); ls.sort(); lvec[m] = ls[ln >> 1];
+      for (let i = 0; i < rn; i++) rbuf[i] = melM[(b + i) * nMels + m];
+      const rs = rbuf.subarray(0, rn); rs.sort(); rvec[m] = rs[rn >> 1];
+    }
+    let dot = 0, na = 0, nb = 0;
+    for (let m = 0; m < nMels; m++){
+      const x = lvec[m], y = rvec[m];
+      dot += x * y; na += x * x; nb += y * y;
+    }
+    /* 右窗只要"新内容占多数"中位数就会跳变，所以峰值出现在真实切点前约一块，
+       右移一块校准（实测把 -0.06~-0.12s 的系统偏差压到 ±0.05s 内）。 */
+    const bi = b + 1;
+
+    cosD[bi] = 1 - dot / (Math.sqrt(na) * Math.sqrt(nb) + 1e-10);
+
+    for (let i = 0; i < ln; i++) lbuf[i] = dbM[la + i];
+    const ld = lbuf.subarray(0, ln); ld.sort();
+    for (let i = 0; i < rn; i++) rbuf[i] = dbM[b + i];
+    const rd = rbuf.subarray(0, rn); rd.sort();
+    dbD[bi] = Math.abs(rd[rn >> 1] - ld[ln >> 1]);
+  }
+
+  const nC = robustNormalize(cosD), nD = robustNormalize(dbD);
+  const score = new Float32Array(nB);
+  for (let b = 0; b < nB; b++) score[b] = 0.60 * nC[b] + 0.40 * nD[b];
+  return { score, hopDur: blockDur, frames: nB, parts: { cos: nC, db: nD } };
+}
+
+/* ---------------- 击球瞬态包络 ----------------
+   和上面的硬切检测正好互为反面：
+     · 硬切检测要「抹掉」冲激 —— 击球是干扰
+     · 击球检测要「提取」冲激 —— 击球是目标
+   做法同样干净：原始 dB 减去中位滤波得到的背景电平，剩下的就是冲激成分。
+   单位 dB，含义是「超出局部背景多少」。 */
+function computeHitEnvelope(a){
+  if (!a || !a.db) return null;
+  const db = a.db, n = db.length;
+  const fd = a.frameDur || 0.02;
+  const fw = Math.max(3, Math.round(0.35 / fd));      // ~350ms 背景窗
+  const bg = medianFilter1d(db, n, fw);
+  const hit = new Float32Array(n);
+  for (let i = 0; i < n; i++) hit[i] = Math.max(0, db[i] - bg[i]);
+  return { hit, frameDur: fd, n };
+}
+
+/* 某时刻之后 winSec 秒内「最强的击球瞬态」有多大（dB）。
+   用来区分「新回合开始」和「回合内的镜头切换」，见 detectCutsMultimodal。 */
+function hitStrengthAfter(H, t, winSec){
+  if (!H) return 0;
+  const i0 = Math.max(0, Math.round(t / H.frameDur));
+  const i1 = Math.min(H.n - 1, i0 + Math.max(1, Math.round(winSec / H.frameDur)));
+  let mx = 0;
+  for (let i = i0; i <= i1; i++) if (H.hit[i] > mx) mx = H.hit[i];
+  return mx;
+}
+
+/* 多模态融合 → 候选切点 → 时间聚类 → 最短段长过滤。
+   CutScore = VisualWeight × VisualChangeScore + AudioWeight × AudioChangeScore */
+function detectCutsMultimodal(){
+  const { v, a, duration } = featureCache;
+  const A = computeAudioChangeScores(a);
+  const V = computeVisualChangeScores(v);
+  if (!A && !V) return { cuts: [], detail: [], grid: null, A, V };
+
+  let wv = state.visualWeight ?? 0.6, wa = state.audioWeight ?? 0.4;
+  if (!A){ wv = 1; wa = 0; }            // 只有画面
+  else if (!V){ wv = 0; wa = 1; }       // 只有声音
+  const sum = (wv + wa) || 1;
+  wv /= sum; wa /= sum;
+
+  // 统一 20ms 栅格：声音 ~11.6ms → 最近邻；画面按采样间隔取所在区间
+  const step = 0.02;
+  const N = Math.max(2, Math.round(duration / step));
+  const score = new Float32Array(N), vscore = new Float32Array(N), ascore = new Float32Array(N);
+  for (let i = 0; i < N; i++){
+    const t = i * step;
+    let av = 0, vv = 0;
+    if (A){
+      const fi = Math.min(A.frames - 1, Math.max(0, Math.round(t / A.hopDur)));
+      av = A.score[fi];
+    }
+    if (V){
+      const vi = Math.min(V.n - 1, Math.max(0, Math.floor(t / V.dt)));
+      vv = V.score[vi];
+    }
+    vscore[i] = vv; ascore[i] = av;
+    score[i] = wv * vv + wa * av;
+  }
+
+  const med = median(score);
+  const sig = robustSigma(score, med);
+  const k = 3.2 / Math.max(0.2, state.sensitivity || 1);
+  const thr = Math.max(0.15, med + k * sig);
+
+  /* 注：这里原本有「黑场 / 闪白」强制切点逻辑，已移除。
+     用户明确说明这类集锦回合之间不插黑场或闪白，而夜场/暗光镜头
+     反而会被误判成黑场、凭空多出切点，收益为负。 */
+
+  // 候选切点：过阈值的局部极大
+  const cands = [];
+  for (let i = 1; i < N - 1; i++){
+    if (score[i] < thr) continue;
+    if (score[i] < score[i - 1] || score[i] < score[i + 1]) continue;
+    const cv = vscore[i], ca = ascore[i];
+    if (cv < 0.22 && ca < 0.22) continue;          // 两者都很小 → Ignore
+    let conf = 'low';
+    if (cv >= 0.55 && ca >= 0.55) conf = 'high';                                  // 双高
+    else if ((cv >= 0.55 && ca >= 0.30) || (cv >= 0.30 && ca >= 0.55)) conf = 'medium';
+    cands.push({ t: i * step, score: score[i], v: cv, a: ca, conf });
+  }
+
+  // 时间聚类：一个真实切点附近会连续多帧高分，clusterWin 内合并，取分最高位置
+  const cw = state.clusterWin ?? 0.5;
+  cands.sort((x, y) => x.t - y.t);
+  const clusters = [];
+  for (const c of cands){
+    const last = clusters[clusters.length - 1];
+    if (last && c.t - last.t <= cw){
+      if (c.score > last.score){ last.t = c.t; last.score = c.score; last.v = c.v; last.a = c.a; last.conf = c.conf; }
+    } else clusters.push({ t: c.t, score: c.score, v: c.v, a: c.a, conf: c.conf });
+  }
+
+  /* ---- 导播镜头切换 vs 集锦的段落边界 ----
+     一条集锦是工作人员把一个个回合「拼」起来的，段落边界＝拼接点。
+     但同一段落内部，导播也会切镜头：一个回合打完，画面从全场切到球员特写，
+     或插一段慢动作回放，再切回下一回合的全场 / 发球镜头。
+
+     这些是导播的镜头语言，属于同一段落，不该被切开；可它们在画面与声音上
+     同样表现为突变，光看切点强度分不出来。决定性差别在内容：
+
+       · 段落边界（新回合开始）→ 切点之后很快就出现击球声（发球 / 第一拍）
+       · 导播切到特写 / 回放     → 切点之后没有击球声
+         （慢放里的击球声被拉长，瞬态成分很低，同样落在这边）
+
+     注意：这是「具体情况判断」，不是一刀切 —— 下面分三种情形处理。 */
+  const H = computeHitEnvelope(a);
+  const hitThr = state.hitDb ?? 8;            // dB：超出局部背景 8dB 才算击球
+  const maxWin = state.hitWin ?? 5.0;         // 观察窗口上限
+  /* 观察窗口自适应：最多往后看 maxWin 秒，但不能越过下一个候选切点。
+     否则特写只有 1~2 秒时，窗口会伸进下一个回合、看到它的击球声，
+     把这个特写入口误判成段落边界。
+     取 5s 是为了覆盖发球准备长的项目（网球抛球、擦汗，第一拍可能迟到 4s）。 */
+  for (let i = 0; i < clusters.length; i++){
+    const c = clusters[i];
+    const nextT = (i + 1 < clusters.length) ? clusters[i + 1].t : (c.t + maxWin);
+    c.win = Math.max(0.5, Math.min(maxWin, nextT - c.t - 0.1));
+    c.hit = hitStrengthAfter(H, c.t, c.win);
+  }
+  /* 分级判定 —— 击球是「新回合」的强证据，但不是必要条件。
+       A. 切点后确有击球 → 保留（新回合开始了）。
+       B. 窗口被下一个切点截断得极短(<1.5s) → 还没来得及击球，判定不可信，
+          中性处理：按切点分数本身决定，交给后面的最短回合限制收敛。
+       C. 窗口足够却无击球 → 默认判为导播镜头切换，丢弃（并回它所属的段落）；
+          只有当画面与声音同时发生「整段换了一套」级别的改变（conf=high 且
+          分数远高于阈值）才保留 —— 覆盖发球准备特别长、窗口内确实没打到球的情形。
+          导播切镜头是同一片场地、同一套现场环境声，音频背景统计基本不变，
+          不会同时双高，所以落在「丢弃」一侧。 */
+  const strongScore = thr * 1.5;
+  let cuts = clusters.filter(c => {
+    if (c.hit >= hitThr) return true;                                   // A
+    if (c.win < 1.5) return c.score >= thr;                             // B
+    return c.conf === 'high' && c.score >= strongScore;                 // C
+  });
+  /* 兜底：若一个切点都没留下（素材特殊或阈值过高），退回全部切点，
+     否则整条视频会被并成一卡，比误切更糟。 */
+  if (!cuts.length) cuts = clusters.slice();
+  const hitInfo = { thr: hitThr, maxWin, total: clusters.length, kept: cuts.length, H };
+
+  // 最短回合限制：会切出过短段时，去掉相邻中分较低的那个切点
+  const minSeg = state.minSeg ?? 2.5;
+  let changed = true, guard = 0;
+  while (changed && guard++ < 1000){
+    changed = false;
+    for (let i = 0; i < cuts.length; i++){
+      const prev = i === 0 ? 0 : cuts[i - 1].t;
+      const next = i === cuts.length - 1 ? duration : cuts[i + 1].t;
+      if (cuts[i].t - prev >= minSeg && next - cuts[i].t >= minSeg) continue;
+      const leftShorter = (cuts[i].t - prev) < (next - cuts[i].t);
+      const neigh = leftShorter ? (i > 0 ? cuts[i - 1] : null) : (i < cuts.length - 1 ? cuts[i + 1] : null);
+      if (!neigh) cuts.splice(i, 1);
+      else cuts.splice(neigh.score < cuts[i].score ? cuts.indexOf(neigh) : i, 1);
+      changed = true; break;
+    }
+  }
+
+  return {
+    cuts: cuts.map(c => +c.t.toFixed(2)),
+    detail: cuts,
+    grid: { score, vscore, ascore, step, thr, med, sig },
+    hitInfo, A, V
+  };
+}
+
+function detectRallies(){
+  const { v, a, duration } = featureCache;
+  const cfg = SPORT_DEFAULTS[state.sport];
+  const sens = state.sensitivity;
+  const mode = state.analysisSource;
+
+  const useAudio = (mode === 'audio' || mode === 'fused') && a;
+  const useVideo = (mode === 'video' || mode === 'fused') && v;
+
+  let cutList = [];
+  let peakIdx = [];
+  let meta = {};
+  let audioFloor = a ? percentile(a.db, 0.15) : 0;
+
+  /* 多模态切点检测（画面突变 + 音频不连续）。
+     集锦里相邻回合之间本来就是「已有的剪辑点」，直接识别它们即可，
+     不需要再用安静期去推断回合边界。 */
+  const mm = detectCutsMultimodal();
+
+  /* ============================================================
+     收集「边界事件」
+     ------------------------------------------------------------
+     两类素材的边界长相完全不同：
+       · 完整比赛 → 片段之间是安静期（准备发球、擦汗）
+       · 剪辑合集 → 片段之间是硬切，没有安静期，只有
+                    画面整屏切换 + 声音电平突变
+     所以两种信号都收集，再按时间合并。
+     ============================================================ */
+  let events = [];          // { at, type:'quiet'|'cut', gap?, strength? }
+  const isCompilation = state.contentType === 'compilation';
+
+  if (useAudio){
+    // 1) 安静段：两种素材都可能有（合集拼接处也可能留了空白）
+    //    注意：合集也用「非严格」灵敏度（ratio 0.35），与不区分合集/比赛前一致。
+    //    v7 曾对合集传 strict=true（0.20）以"避免低音量片段被误判安静"，但那会
+    //    把片段内回合间的真实安静期也压掉，导致多个回合被粘成一卡——比不区分前还粗。
+    //    硬切/音量突变由 cut 信号兜底，不靠压低安静检测来防误切。
+    const res = detectQuietSegments(a, cfg, sens, false);
+    meta.audio = res;
+    audioFloor = res.floorDb;
+    res.gaps.forEach(g => events.push({ type: 'quiet', at: g.start, gap: g }));
+
+    // 2) 音频不连续：合集的主要信号
+    if (isCompilation){
+      const disc = detectAudioDiscontinuity(a, cfg, sens);
+      meta.audioDisc = disc;
+      disc.points.forEach(p =>
+        events.push({ type: 'cut', at: p.at, strength: p.strength, from: 'audio' }));
+    }
+  }
+
+  if (useVideo){
+    // 3) 画面硬切：合集里最强的信号
+    if (isCompilation){
+      const vc = detectVideoCuts(v, cfg, sens);
+      meta.videoCuts = vc;
+      vc.points.forEach(p =>
+        events.push({ type: 'cut', at: p.at, strength: p.strength, from: 'video' }));
+    } else {
+      // 完整比赛：画面只用来在安静间隙内挑精确时刻
+      const vp = detectVideoPeaks(v, cfg, sens);
+      meta.video = vp;
+      peakIdx = vp.peakIdx;
+    }
+  }
+
+  /* 切点（cut）与安静段（quiet）的可靠度不一样，不能平级竞争：
+     合集里不同片段音量不同，安静段检测会把整个低音量片段误判成「安静」，
+     直接拿它当边界反而会盖掉真正的接缝。
+
+     所以改成两层切分：
+       第一层：用 cut 点（音频突变 + 画面硬切）切出骨架 —— 这些接缝最可靠
+       第二层：在每个骨架段内部，再用安静期细分 —— 解决「几个回合粘在一起」
+  */
+  const cuts = events.filter(e => e.type === 'cut').map(e => e.at);
+  const gaps = events.filter(e => e.type === 'quiet').map(e => e.gap);
+
+  // 切点去重（同一个接缝被音频和画面同时命中）
+  cuts.sort((x, y) => x - y);
+  const uniqCuts = [];
+  for (const c of cuts){
+    if (!uniqCuts.length || c - uniqCuts[uniqCuts.length - 1] >= Math.max(0.8, cfg.minRally * 0.4)){
+      uniqCuts.push(+c.toFixed(2));
+    }
+  }
+
+  // ---- 第一层：cut 骨架 ----
+  const coarse = [];
+  let cur = 0;
+  for (const c of uniqCuts){
+    if (c - cur < cfg.minRally * 0.5) continue;
+    coarse.push([cur, c]);
+    cur = c;
+  }
+  coarse.push([cur, duration]);
+
+  // ---- 第二层：用安静期细分 ----
+  // 比赛：安静间隙本就是回合边界，但只在「段过长」时才细分，
+  //       避免误检的安静间隙把一整段切碎（实测 33–48 被切成两截）。
+  // 合集：每个短片段内部往往还含多个回合，回合间用 1~3s 安静期隔开，
+  //       所以安静间隙也是真实边界——无论段长都要细分，否则多个回合被粘成一卡
+  //       （这正是「比上上版更粗」的回归来源，见 v7 两层切分改动）。
+  const rawSegs = [];
+  for (const [s, e] of coarse){
+    if (!isCompilation && e - s <= cfg.maxRally){
+      rawSegs.push([s, e]);          // 比赛且长度合理，直接作为一个片段
+      continue;
+    }
+    const needGap = cfg.minGap;
+    const inner = gaps.filter(g =>
+      g.start >= s - 0.2 && g.end <= e + 0.2 && (g.end - g.start) >= needGap);
+    inner.sort((x, y) => x.start - y.start);
+    let c2 = s;
+    for (const g of inner){
+      if (g.start - c2 >= cfg.minRally * 0.5){
+        rawSegs.push([c2, g.start]);
+        c2 = Math.max(c2, g.end);
+      }
+    }
+    if (e - c2 >= cfg.minRally * 0.5) rawSegs.push([c2, e]);
+  }
+
+  /* ---- 段起点对齐 ----
+     过去用安静间隙的中点当切点，导致片段开头落在间隙中间，
+     把上一个回合的尾巴带了进来（用户原话：「上一个球的结束作为片段的开始」）。
+     现在段终点就是间隙开始 / 切点，起点用发球对齐精修。 */
+  const segments = [];
+  const fluxThr = meta.audio ? meta.audio.fluxThr : 0;
+  const pushSeg = (from, to) => {
+    if (to - from < cfg.minRally * 0.5) return;
+    let cs = from;
+    // 发球对齐：找本段第一次击球声，起点前移一点包住引拍/抛球
+    if (useAudio && meta.audio){
+      const fh = findFirstHit(from, to, a, fluxThr);
+      if (fh != null && fh > from) cs = Math.max(from, fh - SERVE_LEAD);
+    }
+    segments.push([cs, to]);
+  };
+  for (const [s, e] of rawSegs) pushSeg(s, e);
+
+  // 融合模式再叠一层画面微调（只往前挪，不往后推）
+  if (useVideo && segments.length){
+    const vmed = median(v.diffs);
+    const vsig = robustSigma(v.diffs, vmed);
+    for (let i = 0; i < segments.length; i++){
+      const rs = refineServeStart(segments[i][0], segments[i][1], v, vmed, vsig);
+      if (rs < segments[i][0]) segments[i][0] = rs;
+    }
+  }
+
+  // 最终使用的边界：硬切点 + 安静间隙（供曲线绘制标注竖线）
+  cutList = uniqCuts.concat(gaps.map(g => +g.start.toFixed(2))).sort((x, y) => x - y);
+
+  // ---- 合并过短 / 二次拆分过长 ----
+  const mergedSegs = [];
+  for (const [s, e] of segments){
+    const len = e - s;
+    if (len > cfg.maxRally * 1.5){
+      const parts = Math.round(len / cfg.maxRally);
+      for (let k = 0; k < parts; k++){
+        mergedSegs.push([s + len * k / parts, s + len * (k + 1) / parts]);
+      }
+    } else {
+      mergedSegs.push([s, e]);
+    }
+  }
+  /* ---- 用多模态切点生成回合 ----
+     这一步取代上面基于安静期的推断：集锦的回合边界就是已存在的剪辑点，
+     所以直接 0 → cut1 → cut2 → … → duration 分段。 */
+  const mmBounds = [0].concat(
+    mm.cuts.filter(t => t > 0.05 && t < duration - 0.05),
+    [duration]
+  );
+  const filtered = [];
+  for (let i = 0; i < mmBounds.length - 1; i++){
+    const s = mmBounds[i], e = mmBounds[i + 1];
+    if (e - s >= 0.3) filtered.push([s, e]);
+  }
+  cutList = mm.cuts.slice();
+
+  // ---- 构造回合 ----
+  // 评分基准：画面用帧差中位数；纯声音用「全场平均超底噪量」
+  let baseRef;
+  if (v) baseRef = meta.video ? meta.video.med : median(v.diffs);
+  else if (a){
+    let sum = 0;
+    for (let i = 0; i < a.db.length; i++) sum += Math.max(0, a.db[i] - audioFloor);
+    baseRef = sum / a.db.length;
+  } else baseRef = 1;
+
+  const rallies = [];
+  for (let i = 0; i < filtered.length; i++){
+    const coreStart = filtered[i][0];
+    const coreEnd   = filtered[i][1];
+
+    let s = Math.max(0, coreStart - state.preBuffer);
+    let e = Math.min(duration, coreEnd + state.postBuffer);
+    if (i === 0) s = 0;
+    if (i === filtered.length - 1) e = duration;
+
+    const act = rallyActivity(coreStart, coreEnd, v, a, audioFloor);
+
+    // 缩略图：有预抽帧就直接取最近的，否则留空由 ensureThumbnails 补
+    let thumb = null;
+    if (v && v.thumbs){
+      const ti = Math.max(0, Math.min(v.thumbs.length - 1,
+        Math.round(((coreStart + coreEnd) / 2) / v.dt)));
+      thumb = v.thumbs[ti];
+    }
+
+    rallies.push({
+      id: 'r' + i,
+      index: i,
+      start: s, end: e,
+      coreStart, coreEnd,
+      status: 'pending',
+      motion: act.value,
+      rating: computeRating(act.value, coreEnd - coreStart, baseRef || 1),
+      thumbnail: thumb,
+      scoreBefore: null, scoreAfter: null
+    });
+  }
+
+  state.rallies = rallies;
+  state.analysis = {
+    mode,
+    cuts: cutList,
+    cutDetail: mm.detail || [],            // 每个切点的分数 / 画面分 / 声音分 / 置信度
+    mm: mm.grid ? {                        // 供调试与后续可视化：融合曲线与阈值
+      thr: mm.grid.thr, med: mm.grid.med, sig: mm.grid.sig, step: mm.grid.step,
+      score: mm.grid.score, vscore: mm.grid.vscore, ascore: mm.grid.ascore
+    } : null,
+    peakIdx,
+    duration,
+    baseRef: baseRef || 1,   // 活跃度满分基准，供 motionPct / 评分复用
+    contentType: state.contentType,
+    audio: a ? {
+      db: a.db, frameDur: a.frameDur, frames: a.frames,
+      gaps: meta.audio ? meta.audio.gaps : [],
+      thr: meta.audio ? meta.audio.thr : 0,
+      floorDb: audioFloor,
+      closed: meta.audio ? meta.audio.closed : null,
+      disc: meta.audioDisc ? meta.audioDisc.disc : null,
+      discThr: meta.audioDisc ? meta.audioDisc.thr : null
+    } : null,
+    video: v ? {
+      diffs: v.diffs, dt: v.dt, times: v.times,
+      med: meta.video ? meta.video.med : median(v.diffs),
+      sigma: meta.video ? meta.video.sigma : 0,
+      hiTh: meta.video ? meta.video.hiTh : 0,
+      k: meta.video ? meta.video.k : 0,
+      cutThr: meta.videoCuts ? meta.videoCuts.thr : null,
+      peakIdx
+    } : null
+  };
+}
+
+/* 重新切分，按时间重叠尽量保留用户已有的保留/删除判断。
+   如果切换到了缓存里没有的信号源（比如原来只用画面，现在要声音），
+   就必须回头补解码，走完整的 analyzeVideo。 */
+async function reanalyze(){
+  const fc = featureCache;
+  const needAudio = state.analysisSource === 'audio' || state.analysisSource === 'fused';
+  const needVideo = state.analysisSource === 'video' || state.analysisSource === 'fused';
+
+  if (!fc || (needAudio && !fc.a) || (needVideo && !fc.v)){
+    const btn = $('#btn-reanalyze');
+    btn.disabled = true;
+    btn.textContent = '补算中…';
+    try {
+      showPage('processing');
+      await analyzeVideo();
+      showPage('browser');
+      renderBrowser();
+      toast(`已按${ {audio:'声音',fused:'声音+画面',video:'画面'}[state.analysisSource] }信号重新切分`);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '重切';
+    }
+    return;
+  }
+
+  const prev = state.rallies
+    .filter(r => r.status !== 'pending')
+    .map(r => ({ s: r.coreStart ?? r.start, e: r.coreEnd ?? r.end, st: r.status }));
+
+  const btn = $('#btn-reanalyze');
+  const oldText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '重算中…';
+  await new Promise(r => setTimeout(r, 30));
+
+  detectRallies();
+  // 切到纯声音模式时可能没有预抽帧，需要补缩略图
+  await ensureThumbnails(fc.v);
+
+  // 状态回填：新回合核心区间与旧区间有明显重叠 → 继承其状态
+  if (prev.length){
+    state.rallies.forEach(nr => {
+      let bestOverlap = 0, bestStatus = null;
+      prev.forEach(pr => {
+        const ov = Math.min(nr.coreEnd, pr.e) - Math.max(nr.coreStart, pr.s);
+        if (ov > bestOverlap){ bestOverlap = ov; bestStatus = pr.st; }
+      });
+      const dur = nr.coreEnd - nr.coreStart;
+      if (bestStatus && bestOverlap > dur * 0.4) nr.status = bestStatus;
+    });
+  }
+
+  state.currentIndex = 0;
+  renderRallyList();
+  renderTimeline();
+  renderStats();
+  renderAnalysisCurve();
+  selectRally(0);
+
+  btn.disabled = false;
+  btn.textContent = oldText;
+  toast(`重新切分完成 · ${state.rallies.length} 个回合`);
+}
+
+/* 精确 seek：seeked 后让出一个渲染周期，确保新帧已解码可绘制 */
+function seekTo(video, t){
+  return new Promise(resolve => {
+    let done = false;
+    let timer = null;
+    const finish = () => { if (!done){ done = true; clearTimeout(timer); resolve(); } };
+
+    video.addEventListener('seeked', () => {
+      if (typeof requestAnimationFrame === 'function') requestAnimationFrame(finish);
+      else finish();
+    }, { once: true });
+
+    video.currentTime = Math.max(0, Math.min(video.duration - 0.001, t));
+    timer = setTimeout(finish, 800);
+  });
+}
+
+/* ============== Browser page ============== */
+function renderBrowser(){
+  $('#main-video').src = state.video.url;
+  renderStats();
+  renderRallyList();
+  renderTimeline();
+  renderAnalysisCurve();
+  selectRally(0);
+  setupBrowserEvents();
+}
+
+window.addEventListener('resize', () => {
+  if (state.view === 'browser') renderAnalysisCurve();
+});
+
+function setupBrowserEvents(){
+  $('#btn-play').onclick = togglePlay;
+  $('#btn-prev').onclick = () => selectRally(state.currentIndex - 1, true);
+  $('#btn-next').onclick = () => selectRally(state.currentIndex + 1, true);
+  $('#btn-keep').onclick = () => toggleStatus('keep');
+  $('#btn-drop').onclick = () => toggleStatus('drop');
+  $('#btn-edit').onclick = openEditModal;
+  $('#btn-generate').onclick = generateHighlight;
+  $('#btn-toggle-view').onclick = toggleGridView;
+  // 注意：#btn-help 的绑定放在 init 里（全局），不能放在这里 ——
+  // 这里只在分析完成后才执行，上传页点按钮会没反应。
+
+  // Target buttons
+  $$('.target-btn').forEach(b => {
+    b.onclick = () => {
+      $$('.target-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      if (b.dataset.target === 'custom'){
+        $('#target-custom').classList.add('show');
+        state.targetDuration = parseInt($('#target-custom').value) || 60;
+      } else {
+        $('#target-custom').classList.remove('show');
+        state.targetDuration = parseInt(b.dataset.target);
+      }
+      renderStats();
+    };
+  });
+  $('#target-custom').onchange = () => {
+    state.targetDuration = parseInt($('#target-custom').value) || 60;
+    renderStats();
+  };
+
+  // Filter chips
+  $$('.filter-chip[data-filter]').forEach(c => {
+    c.onclick = () => {
+      $$('.filter-chip[data-filter]').forEach(x => x.classList.remove('active'));
+      c.classList.add('active');
+      state.filter = c.dataset.filter;
+      renderRallyList();
+    };
+  });
+
+  $('#btn-keep-all').onclick = () => bulkSet('keep');
+  $('#btn-drop-all').onclick = () => bulkSet('drop');
+  $('#btn-invert').onclick = () => bulkInvert();
+  $('#btn-add-rally').onclick = addRallyAtCurrent;
+
+  // 悬停预览开关
+  const hp = $('#btn-hover-preview');
+  hp.classList.toggle('active', state.hoverPreview);
+  hp.onclick = () => {
+    state.hoverPreview = !state.hoverPreview;
+    hp.classList.toggle('active', state.hoverPreview);
+    toast('悬停预览已' + (state.hoverPreview ? '开启' : '关闭'));
+  };
+
+  // 重新分析（保留已筛选状态：按时间重叠把状态映射回新回合）
+  const bs = $('#browser-sens');
+  bs.value = state.sensitivity;
+  $('#browser-sens-val').textContent = state.sensitivity.toFixed(1) + '×';
+  bs.oninput = () => {
+    state.sensitivity = parseFloat(bs.value);
+    $('#browser-sens-val').textContent = state.sensitivity.toFixed(1) + '×';
+  };
+  // 信号源切换：改变后自动重切（若缓存里没有该信号则完整重跑分析）
+  $$('#browser-source .mini').forEach(b => {
+    b.onclick = async () => {
+      if (b.dataset.source === state.analysisSource) return;
+      $$('#browser-source .mini').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      state.analysisSource = b.dataset.source;
+      await reanalyze();
+    };
+  });
+  // 同步初始态
+  $$('#browser-source .mini').forEach(x =>
+    x.classList.toggle('active', x.dataset.source === state.analysisSource));
+
+  $('#btn-reanalyze').onclick = () => reanalyze();
+
+  // Video events
+  const v = $('#main-video');
+  v.ontimeupdate = () => {
+    updatePlayhead();
+    $('#time-display').textContent = `${fmt(v.currentTime)} / ${fmt(v.duration)}`;
+  };
+  v.onplay = () => $('#overlay-state').style.display = '' && ($('#overlay-state').textContent = '播放中');
+  v.onpause = () => $('#overlay-state').textContent = '已暂停';
+
+  // Timeline click
+  $('#timeline-track').onclick = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct = (e.clientX - rect.left) / rect.width;
+    const t = pct * v.duration;
+    // If click is inside a rally, select it; otherwise seek
+    const r = state.rallies.find(r => t >= r.start && t <= r.end);
+    if (r){
+      selectRally(state.rallies.indexOf(r));
+    } else {
+      v.currentTime = t;
+    }
+  };
+
+  // Playback rate
+  $('#rate-select').onchange = e => v.playbackRate = parseFloat(e.target.value);
+
+  // Restart
+  $('#btn-restart').onclick = () => {
+    if (confirm('确定重新开始？\n\n当前的筛选状态已自动保存，可从上传页的「最近项目」重新打开。')){
+      location.reload();
+    }
+  };
+}
+
+function togglePlay(){
+  const v = $('#main-video');
+  if (v.paused) v.play();
+  else v.pause();
+}
+
+function selectRally(index, autoplay){
+  if (index < 0 || index >= state.rallies.length) return;
+  // 下面会 renderRallyList() 重建列表，光标下会补发 mouseenter，
+  // 必须抑制悬停预览，否则刚 play() 的视频被 pause 掉（点了像没播）。
+  hoverSuppressUntil = performance.now() + 500;
+  state.currentIndex = index;
+  const r = state.rallies[index];
+  const v = $('#main-video');
+  v.currentTime = r.start + 0.05;
+  if (autoplay) v.play();
+  renderRallyList();
+  renderTimeline();
+  $('#overlay-current').textContent = `回合 ${index+1} / ${state.rallies.length}`;
+  // 键盘导航时让当前卡片始终可见，否则翻到列表外就不知道选中了谁
+  requestAnimationFrame(() => {
+    const card = $('#rally-list .rally-card.current')
+      || $('#grid-list .grid-card.current');
+    if (card) card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
+  $('#current-rally-info').textContent = `#${index+1} · ${fmtDuration(r.end - r.start)}`;
+  $('#stat-selected').textContent = fmtDuration(selectedDuration());
+  renderStats();
+}
+
+function toggleStatus(newStatus){
+  const r = state.rallies[state.currentIndex];
+  if (!r) return;
+  r.status = r.status === newStatus ? 'pending' : newStatus;
+  renderRallyList();
+  renderTimeline();
+  renderStats();
+  toast(`回合 #${state.currentIndex+1} ${labelOf(r.status)}`, r.status === 'pending' ? '' : r.status);
+  // Auto advance on keep/drop
+  if (r.status === 'keep' || r.status === 'drop'){
+    setTimeout(() => {
+      if (state.currentIndex < state.rallies.length - 1){
+        selectRally(state.currentIndex + 1, true);
+      }
+    }, 200);
+  }
+}
+function labelOf(s){ return s==='keep'?'已保留':s==='drop'?'已删除':'待定'; }
+
+function bulkSet(status){
+  state.rallies.forEach(r => r.status = status);
+  renderRallyList(); renderTimeline(); renderStats();
+  toast(`全部${labelOf(status)}`);
+}
+function bulkInvert(){
+  state.rallies.forEach(r => {
+    r.status = r.status === 'keep' ? 'drop' : r.status === 'drop' ? 'keep' : 'keep';
+  });
+  renderRallyList(); renderTimeline(); renderStats();
+  toast('已反选');
+}
+function addRallyAtCurrent(){
+  const v = $('#main-video');
+  const t = v.currentTime;
+  const start = Math.max(0, t - 2);
+  const end = Math.min(state.video.duration, t + 5);
+
+  // 用当前信号源算该区间的活跃度
+  const fc = featureCache;
+  const act = fc ? rallyActivity(start, end, fc.v, fc.a,
+    fc.a ? percentile(fc.a.db, 0.15) : 0) : { value: 0 };
+  let baseRef = 1;
+  if (fc && fc.v) baseRef = median(fc.v.diffs);
+  else if (fc && fc.a){
+    const floor = percentile(fc.a.db, 0.15);
+    let sum = 0;
+    for (let i = 0; i < fc.a.db.length; i++) sum += Math.max(0, fc.a.db[i] - floor);
+    baseRef = sum / fc.a.db.length;
+  }
+
+  const newRally = {
+    id: 'r' + Date.now(),
+    index: state.rallies.length,
+    start, end,
+    coreStart: start, coreEnd: end,
+    status: 'pending',
+    motion: act.value,
+    rating: computeRating(act.value, end - start, baseRef || 1)
+  };
+  state.rallies.push(newRally);
+  state.rallies.sort((a,b) => a.start - b.start);
+  state.rallies.forEach((r,i) => r.index = i);
+  renderRallyList(); renderTimeline(); renderStats();
+  toast('已添加回合');
+}
+
+function renderRallyList(){
+  const list = $('#rally-list');
+  list.innerHTML = '';
+  let visible = state.rallies;
+  if (state.filter !== 'all'){
+    visible = visible.filter(r => r.status === state.filter);
+  }
+  if (visible.length === 0){
+    list.innerHTML = '<div class="empty">没有匹配的回合</div>';
+    $('#grid-count-label').textContent = `0 / ${state.rallies.length} 回合`;
+    return;
+  }
+  visible.forEach(r => {
+    const realIndex = state.rallies.indexOf(r);
+    const card = document.createElement('div');
+    card.className = 'rally-card ' + r.status + (realIndex === state.currentIndex ? ' current' : '');
+    card.innerHTML = `
+      <div class="rally-thumb">
+        ${r.thumbnail ? `<img src="${r.thumbnail}">` : '<div style="width:100%;height:100%;background:#EFEBE4"></div>'}
+        <div class="play-overlay">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="#FFFFFF"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+        </div>
+      </div>
+      <div class="rally-info">
+        <div class="rally-title">
+          <span>#${realIndex+1}</span>
+          <span class="badge ${r.status}">${labelOf(r.status)}</span>
+          ${state.ratings ? `<span class="stars">${starsOf(r.rating)}</span>` : ''}
+        </div>
+        <div class="rally-times">${fmt(r.start)} – ${fmt(r.end)}</div>
+        <div class="rally-duration">${fmtDuration(r.end - r.start)}</div>
+        ${state.ratings && typeof r.motion === 'number' ? `
+        <div class="motion-wrap">
+          <div class="motion-track"><div class="motion-fill" style="width:${Math.min(100, Math.round(motionPct(r.motion) * 100))}%"></div></div>
+          <span class="motion-label">${Math.round(motionPct(r.motion) * 100)}</span>
+        </div>` : ''}
+      </div>
+      <div class="rally-actions">
+        <button class="icon-btn" title="保留" data-action="keep">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+        <button class="icon-btn" title="删除" data-action="drop">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    `;
+    card.onclick = (e) => {
+      if (e.target.closest('[data-action]')) return;
+      clearTimeout(hoverTimer);
+      selectRally(realIndex, true);
+    };
+
+    // 悬停预览：划过卡片时左侧跳到该回合画面（暂停状态），
+    // 方便快速扫一遍找到想要的球，不用逐个点开。
+    card.onmouseenter = () => {
+      if (!state.hoverPreview) return;
+      // 列表被重建后浏览器会在光标下补发 mouseenter，抑制这段窗口，
+      // 否则刚点开播放的视频会被下面的 pause() 打断（表现为"点了不播放"）。
+      if (performance.now() < hoverSuppressUntil) return;
+      // 当前选中（通常正在播放）的回合不做悬停预览，避免打断播放。
+      if (realIndex === state.currentIndex) return;
+      clearTimeout(hoverTimer);
+      hoverTimer = setTimeout(() => {
+        const v = $('#main-video');
+        if (v && v.readyState >= 1){
+          v.pause();
+          v.currentTime = (r.coreStart ?? r.start) + 0.05;
+        }
+      }, 160);
+    };
+    card.onmouseleave = () => clearTimeout(hoverTimer);
+
+    card.querySelectorAll('[data-action]').forEach(b => {
+      b.onclick = (e) => {
+        e.stopPropagation();
+        const action = b.dataset.action;
+        state.currentIndex = realIndex;
+        toggleStatus(action);
+      };
+    });
+    list.appendChild(card);
+  });
+  $('#grid-count-label').textContent = `${state.rallies.length} 回合`;
+}
+
+function starsOf(rating){
+  if (rating >= 85) return '★★★★★';
+  if (rating >= 70) return '★★★★☆';
+  if (rating >= 55) return '★★★☆☆';
+  if (rating >= 40) return '★★☆☆☆';
+  return '★☆☆☆☆';
+}
+
+/* 把回合活跃度归一化到 0..1：以该场常态水平的 3 倍为满分基准 */
+function motionPct(motion){
+  const A = state.analysis;
+  if (!A || !A.baseRef) return 0;
+  return Math.min(1, motion / (A.baseRef * 3));
+}
+
+/* 侧栏分析曲线：
+   优先画声音能量包络（更可靠），并高亮检测到的「安静间隙」；
+   没有音频数据时退回画面帧差曲线。竖线 = 最终切点。 */
+function renderAnalysisCurve(){
+  const box = $('#analysis-curve');
+  if (!box) return;
+  const A = state.analysis;
+  const hasAudio = A && A.audio && A.audio.db && A.audio.db.length;
+  const hasVideo = A && A.video && A.video.diffs && A.video.diffs.length;
+  if (!hasAudio && !hasVideo){ box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+
+  const titleEl = $('#analysis-curve-title');
+  if (titleEl){
+    if (A.contentType === 'compilation'){
+      titleEl.textContent = hasAudio
+        ? '声音能量 · 阴影=安静间隙 · 虚线=突变阈值 · 竖线为切点'
+        : '画面变化 · 虚线=硬切阈值 · 竖线为切点';
+    } else {
+      titleEl.textContent = hasAudio
+        ? '声音能量 · 阴影为安静间隙 · 竖线为切点'
+        : '画面变化强度 · 竖线为切点';
+    }
+  }
+
+  const cv = $('#analysis-cv');
+  const dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth || 340, h = 56;
+  cv.width = w * dpr; cv.height = h * dpr;
+  const ctx = cv.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, h);
+
+  const dur = A.duration || state.video.duration;
+
+  if (hasAudio){
+    const { db, frameDur, gaps, thr, floorDb } = A.audio;
+    const n = db.length;
+    // 纵轴范围：底噪 → 底噪+35dB
+    const lo = floorDb - 2, hi = floorDb + 35;
+    const yOf = v => h - Math.min(1, Math.max(0, (v - lo) / (hi - lo))) * (h - 4) - 2;
+
+    // 安静间隙（判定为回合间隙的区域）用淡色块标出
+    ctx.fillStyle = 'rgba(79,122,63,.18)';
+    gaps.forEach(g => {
+      const x0 = (g.start / dur) * w, x1 = (g.end / dur) * w;
+      ctx.fillRect(x0, 0, Math.max(1, x1 - x0), h);
+    });
+
+    // 能量包络：填充 + 描边
+    ctx.beginPath();
+    ctx.moveTo(0, h);
+    for (let i = 0; i < n; i++){
+      const x = (i / (n - 1)) * w;
+      ctx.lineTo(x, yOf(db[i]));
+    }
+    ctx.lineTo(w, h);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(85,80,74,.16)';
+    ctx.fill();
+
+    ctx.beginPath();
+    for (let i = 0; i < n; i++){
+      const x = (i / (n - 1)) * w, y = yOf(db[i]);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = '#55504A';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // 活跃/安静判定阈值
+    if (thr != null){
+      const ty = yOf(thr);
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(133,99,24,.75)';
+      ctx.setLineDash([3, 3]);
+      ctx.moveTo(0, ty); ctx.lineTo(w, ty);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // 合集模式：叠加「音频不连续度」曲线，尖峰处就是片段接缝
+    if (A.audio && A.audio.disc && A.audio.discThr != null){
+      const d = A.audio.disc;
+      let dmax = 0;
+      for (let i = 0; i < d.length; i++) if (d[i] > dmax) dmax = d[i];
+      if (dmax > 0){
+        ctx.beginPath();
+        for (let i = 0; i < d.length; i++){
+          const x = (i / (d.length - 1)) * w;
+          const y = h - (d[i] / dmax) * (h * 0.55) - 2;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = 'rgba(168,69,46,.55)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+  } else {
+    const { diffs, med, hiTh } = A.video;
+    const n = diffs.length;
+    const ref = (med || 0) * 8 || percentile(diffs, 0.99) || 1;
+
+    ctx.beginPath();
+    for (let i = 0; i < n; i++){
+      const x = (i / (n - 1)) * w;
+      const y = h - Math.min(1, diffs[i] / ref) * (h - 4) - 2;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = '#55504A';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    if (hiTh != null){
+      const ty = h - Math.min(1, hiTh / ref) * (h - 4) - 2;
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(133,99,24,.75)';
+      ctx.setLineDash([3, 3]);
+      ctx.moveTo(0, ty); ctx.lineTo(w, ty);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // 切点竖线（两种模式共用）
+  ctx.fillStyle = '#1F1D1A';
+  (A.cuts || []).forEach(t => {
+    const x = (t / dur) * w;
+    ctx.fillRect(x, 0, 1, h);
+  });
+}
+
+function renderTimeline(){
+  const track = $('#timeline-track');
+  track.innerHTML = '';
+  const dur = state.video.duration;
+  state.rallies.forEach((r, idx) => {
+    const el = document.createElement('div');
+    el.className = 'timeline-rally ' + r.status + (idx === state.currentIndex ? ' current' : '');
+    el.style.left = (r.start / dur * 100) + '%';
+    el.style.width = ((r.end - r.start) / dur * 100) + '%';
+
+    // 内层高亮块 = 画面分析检测到的核心区间（外层是加了缓冲的导出区间）
+    const cs = (r.coreStart ?? r.start);
+    const ce = (r.coreEnd ?? r.end);
+    const coreLeft = ((cs - r.start) / (r.end - r.start)) * 100;
+    const coreWidth = ((ce - cs) / (r.end - r.start)) * 100;
+
+    el.innerHTML = `
+      <div class="timeline-core" style="left:${coreLeft}%;width:${coreWidth}%"></div>
+      <div class="timeline-rally-label">${idx+1}</div>
+    `;
+    el.onclick = (e) => {
+      e.stopPropagation();
+      selectRally(idx);
+    };
+    track.appendChild(el);
+  });
+}
+
+function updatePlayhead(){
+  const v = $('#main-video');
+  if (!v.duration) return;
+  $('#playhead').style.left = (v.currentTime / v.duration * 100) + '%';
+}
+
+function selectedDuration(){
+  return state.rallies
+    .filter(r => r.status === 'keep')
+    .reduce((sum, r) => sum + (r.end - r.start), 0);
+}
+
+function renderStats(){
+  const total = state.rallies.length;
+  const keepCount = state.rallies.filter(r => r.status === 'keep').length;
+  const dropCount = state.rallies.filter(r => r.status === 'drop').length;
+  const sel = selectedDuration();
+  const tgt = state.targetDuration;
+  const remaining = tgt - sel;
+
+  $('#stat-total').textContent = total;
+  $('#stat-keep').textContent = keepCount;
+  $('#stat-drop').textContent = dropCount;
+  $('#stat-selected').textContent = fmtDuration(sel);
+  $('#stat-target').textContent = fmtDuration(tgt);
+
+  const remEl = $('#stat-remaining');
+  if (remaining >= 0){
+    remEl.textContent = '还剩 ' + fmtDuration(remaining);
+    remEl.classList.remove('warn');
+  } else {
+    remEl.textContent = '超出 ' + fmtDuration(-remaining);
+    remEl.classList.add('warn');
+  }
+
+  const pct = Math.min(sel / tgt, 1.5) * 100;
+  const fill = $('#progress-fill');
+  fill.style.width = Math.min(pct, 100) + '%';
+  fill.classList.remove('over','warn');
+  if (sel > tgt) fill.classList.add('warn');
+  else if (sel > tgt * 0.9) fill.classList.add('over');
+
+  /* 所有会改变结果的操作（保留/删除、合并、切分、调边界、改目标时长）
+     最终都会走到这里，所以放在这里统一触发保存，省得漏接。
+     scheduleSave 内部有 900ms 防抖，连续操作只写一次库。 */
+  scheduleSave();
+}
+
+/* ============== Grid view ============== */
+function toggleGridView(){
+  if (state.gridOpen){
+    $('#grid-view').classList.add('hidden');
+    state.gridOpen = false;
+    return;
+  }
+  renderGrid();
+  $('#grid-view').classList.remove('hidden');
+  state.gridOpen = true;
+}
+
+function renderGrid(){
+  const grid = $('#grid-list');
+  grid.innerHTML = '';
+  state.rallies.forEach((r, idx) => {
+    const card = document.createElement('div');
+    card.className = 'grid-card ' + r.status + (idx === state.currentIndex ? ' current' : '');
+    card.innerHTML = `
+      <div class="grid-thumb">
+        ${r.thumbnail ? `<img src="${r.thumbnail}">` : ''}
+        <div class="num-tag">#${idx+1}</div>
+        <div class="status-tag ${r.status}">${labelOf(r.status)}</div>
+        <div class="play-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="#FFFFFF" style="filter:drop-shadow(0 2px 4px rgba(12,9,8,.5))"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+        </div>
+      </div>
+      <div class="grid-meta">
+        <div class="grid-meta-row">
+          <span style="color:var(--text-3);font-size:11px">${fmt(r.start)} – ${fmt(r.end)}</span>
+          <span class="dur">${fmtDuration(r.end - r.start)}</span>
+        </div>
+        ${state.ratings ? `<div style="margin-top:4px;font-size:11px;color:var(--text-3)">
+          精彩度 ${r.rating} · 强度 ${typeof r.motion === 'number' ? Math.round(motionPct(r.motion) * 100) : '—'} · ${starsOf(r.rating)}
+        </div>` : ''}
+      </div>
+    `;
+    card.onclick = () => {
+      $('#grid-view').classList.add('hidden');
+      state.gridOpen = false;
+      selectRally(idx, true);
+    };
+    grid.appendChild(card);
+  });
+}
+
+/* ============== Edit modal ============== */
+function openEditModal(){
+  const r = state.rallies[state.currentIndex];
+  if (!r) return;
+  const modal = $('#edit-modal');
+  const v = $('#edit-video');
+  v.src = state.video.url;
+  $('#edit-title').textContent = `调整回合 #${state.currentIndex+1}`;
+  $('#edit-start').min = 0;
+  $('#edit-start').max = state.video.duration;
+  $('#edit-start').value = r.start;
+  $('#edit-end').min = 0;
+  $('#edit-end').max = state.video.duration;
+  $('#edit-end').value = r.end;
+  $('#edit-start-val').textContent = fmt(r.start);
+  $('#edit-end-val').textContent = fmt(r.end);
+  v.currentTime = r.start + 0.05;
+
+  const onStart = () => {
+    let s = parseFloat($('#edit-start').value);
+    let e = parseFloat($('#edit-end').value);
+    if (s >= e - 0.5) s = e - 0.5;
+    $('#edit-start').value = s;
+    $('#edit-start-val').textContent = fmt(s);
+    v.currentTime = s + 0.05;
+  };
+  const onEnd = () => {
+    let s = parseFloat($('#edit-start').value);
+    let e = parseFloat($('#edit-end').value);
+    if (e <= s + 0.5) e = s + 0.5;
+    $('#edit-end').value = e;
+    $('#edit-end-val').textContent = fmt(e);
+    v.currentTime = e - 0.05;
+  };
+  $('#edit-start').oninput = onStart;
+  $('#edit-end').oninput = onEnd;
+
+  $$('.quick-adjust [data-adjust]').forEach(b => {
+    b.onclick = () => {
+      const target = b.dataset.adjust;
+      const delta = parseFloat(b.dataset.delta);
+      const slider = $('#edit-' + target);
+      let v = parseFloat(slider.value) + delta;
+      v = Math.max(0, Math.min(state.video.duration, v));
+      slider.value = v;
+      if (target === 'start') onStart(); else onEnd();
+    };
+  });
+
+  $('#btn-edit-save').onclick = () => {
+    const ns = parseFloat($('#edit-start').value);
+    const ne = parseFloat($('#edit-end').value);
+    r.start = ns;
+    r.end = ne;
+    // 手动改过之后，把核心标记约束在新范围内
+    r.coreStart = Math.max(ns, Math.min(r.coreStart ?? ns, ne));
+    r.coreEnd   = Math.max(r.coreStart, Math.min(r.coreEnd ?? ne, ne));
+    modal.classList.add('hidden');
+    selectRally(state.currentIndex, false);
+    toast('已保存调整');
+  };
+  $('#btn-edit-cancel').onclick = () => modal.classList.add('hidden');
+  $('#btn-edit-close').onclick = () => modal.classList.add('hidden');
+
+  modal.classList.remove('hidden');
+}
+
+/* ============== Generate highlight ============== */
+async function generateHighlight(){
+  const keeps = state.rallies
+    .filter(r => r.status === 'keep')
+    .sort((a,b) => a.start - b.start);
+
+  if (keeps.length === 0){
+    toast('请先至少保留 1 个回合');
+    return;
+  }
+
+  // Compute total duration
+  const totalDuration = keeps.reduce((s, r) => s + (r.end - r.start), 0);
+
+  showPage('preview');
+  $('#final-duration').textContent = fmtDuration(totalDuration);
+  $('#final-count').textContent = keeps.length;
+  $('#preview-duration').textContent = `总时长 ${fmtDuration(totalDuration)}`;
+  $('#preview-count').textContent = `${keeps.length} 个片段`;
+
+  // Generate concatenated preview using MediaRecorder
+  await generatePreviewVideo(keeps);
+}
+
+async function generatePreviewVideo(keeps){
+  const previewVideo = $('#preview-video');
+  const stage = $('.preview-stage');
+  // Show progress overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'export-overlay';
+  overlay.innerHTML = `
+    <div class="processing-spinner"></div>
+    <h3>正在生成集锦预览</h3>
+    <p id="export-progress-text">准备中…</p>
+    <div class="processing-bar" style="width:320px"><div class="processing-bar-fill" id="export-progress-bar"></div></div>
+  `;
+  stage.appendChild(overlay);
+
+  try {
+    // Create a canvas to capture each frame
+    const canvas = document.createElement('canvas');
+    const w = state.video.width || 1280;
+    const h = state.video.height || 720;
+    // For performance, downscale if too large
+    const scale = Math.min(1, 1280 / w);
+    canvas.width = Math.round(w * scale);
+    canvas.height = Math.round(h * scale);
+    const ctx = canvas.getContext('2d');
+
+    // Create source video (off-DOM)
+    const src = document.createElement('video');
+    src.src = state.video.url;
+    src.crossOrigin = 'anonymous';
+    src.muted = false;
+    await new Promise(r => src.onloadedmetadata = r);
+
+    // Capture stream
+    const stream = canvas.captureStream(30);
+    let mimeType = 'video/webm;codecs=vp9';
+    if (!MediaRecorder.isTypeSupported(mimeType)){
+      mimeType = 'video/webm;codecs=vp8';
+    }
+    if (!MediaRecorder.isTypeSupported(mimeType)){
+      mimeType = 'video/webm';
+    }
+    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 4_000_000 });
+    const chunks = [];
+    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+
+    const recordedPromise = new Promise(resolve => {
+      recorder.onstop = () => resolve();
+    });
+
+    recorder.start();
+
+    // For each rally, play it through and draw to canvas
+    for (let i = 0; i < keeps.length; i++){
+      const r = keeps[i];
+      $('#export-progress-text').textContent = `处理片段 ${i+1}/${keeps.length}`;
+      $('#export-progress-bar').style.width = ((i+1) / keeps.length * 100) + '%';
+
+      src.currentTime = r.start;
+      await new Promise(res => {
+        const h = () => { src.removeEventListener('seeked', h); res(); };
+        src.addEventListener('seeked', h);
+        setTimeout(res, 1500);
+      });
+      src.muted = false;
+      await src.play();
+
+      const dur = r.end - r.start;
+      const startT = performance.now();
+
+      await new Promise(resolve => {
+        const draw = () => {
+          ctx.drawImage(src, 0, 0, canvas.width, canvas.height);
+          const elapsed = (performance.now() - startT) / 1000;
+          if (elapsed >= dur || src.ended){
+            src.pause();
+            resolve();
+          } else {
+            requestAnimationFrame(draw);
+          }
+        };
+        draw();
+      });
+    }
+
+    recorder.stop();
+    await recordedPromise;
+
+    const blob = new Blob(chunks, { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    previewVideo.src = url;
+    previewVideo.load();
+    overlay.remove();
+    toast(`✓ 集锦已生成 (${(blob.size/1024/1024).toFixed(1)} MB)`);
+  } catch (err){
+    console.error(err);
+    overlay.innerHTML = `
+      <h3>浏览器导出遇到问题</h3>
+      <p style="max-width:480px;text-align:center">${err.message || err}</p>
+      <button class="btn" id="overlay-close">关闭</button>
+    `;
+    $('#overlay-close').onclick = () => overlay.remove();
+  }
+
+  // Setup preview page buttons
+  $('#btn-back-adjust').onclick = () => {
+    previewVideo.pause();
+    showPage('browser');
+  };
+  $('#btn-rebuild').onclick = () => {
+    previewVideo.pause();
+    showPage('browser');
+    toast('重新筛选回合');
+  };
+  $('#btn-export').onclick = () => {
+    previewVideo.pause();
+    exportVideo();
+  };
+}
+
+function exportVideo(){
+  const keeps = state.rallies
+    .filter(r => r.status === 'keep')
+    .sort((a,b) => a.start - b.start);
+
+  const src = state.video.file.name;
+  const listContent = keeps.map((_, i) => `file 'part_${String(i+1).padStart(3,'0')}.mp4'`).join('\n');
+
+  // ---- 路径 A：快速导出（stream copy，切点吸附到关键帧）----
+  const fast = [
+    '#!/usr/bin/env bash',
+    '# RoundCut 集锦导出 · 快速模式（不重新编码，几十秒完成）',
+    '# 代价：每个切点会吸附到最近的视频关键帧，可能偏移 0~2 秒',
+    'set -e',
+    `SRC="${src}"`,
+    'mkdir -p roundcut_export && cd roundcut_export',
+    '',
+    ...keeps.map((r, i) =>
+      `ffmpeg -y -ss ${r.start.toFixed(3)} -to ${r.end.toFixed(3)} -i "../$SRC" \\\n  -c copy -avoid_negative_ts make_zero part_${String(i+1).padStart(3,'0')}.mp4`
+    ),
+    '',
+    `cat > list.txt << 'EOF'\n${listContent}\nEOF`,
+    '',
+    'ffmpeg -y -f concat -safe 0 -i list.txt -c copy highlight.mp4',
+    'echo "✓ roundcut_export/highlight.mp4"'
+  ].join('\n');
+
+  // ---- 路径 B：精确导出（重编码，切点帧级精确）----
+  const accurate = [
+    '#!/usr/bin/env bash',
+    '# RoundCut 集锦导出 · 精确模式（重新编码，切点帧级准确）',
+    '# 代价：耗时较长，取决于视频长度与机器性能',
+    'set -e',
+    `SRC="${src}"`,
+    'mkdir -p roundcut_export && cd roundcut_export',
+    '',
+    ...keeps.map((r, i) =>
+      `ffmpeg -y -ss ${r.start.toFixed(3)} -to ${r.end.toFixed(3)} -i "../$SRC" \\\n  -c:v libx264 -preset veryfast -crf 18 -c:a aac -b:a 192k \\\n  -avoid_negative_ts make_zero part_${String(i+1).padStart(3,'0')}.mp4`
+    ),
+    '',
+    `cat > list.txt << 'EOF'\n${listContent}\nEOF`,
+    '',
+    '# 重编码后的片段参数一致，可直接 concat 不二次编码',
+    'ffmpeg -y -f concat -safe 0 -i list.txt -c copy highlight.mp4',
+    'echo "✓ roundcut_export/highlight.mp4"'
+  ].join('\n');
+
+  // ---- 路径 C：单条命令（不落地中间文件）----
+  const filterParts = keeps.map((r, i) =>
+    `[0:v]trim=start=${r.start.toFixed(3)}:end=${r.end.toFixed(3)},setpts=PTS-STARTPTS[v${i}];` +
+    `[0:a]atrim=start=${r.start.toFixed(3)}:end=${r.end.toFixed(3)},asetpts=PTS-STARTPTS[a${i}]`
+  ).join(';\n');
+  const concatIn = keeps.map((_, i) => `[v${i}][a${i}]`).join('');
+  const single = [
+    '#!/usr/bin/env bash',
+    '# RoundCut 集锦导出 · 单命令模式（一次编解码，不落地中间文件）',
+    '# 适合片段数量多的场景，比逐段导出再拼接略快',
+    'set -e',
+    `ffmpeg -y -i "${src}" -filter_complex "`,
+    filterParts + ';',
+    `${concatIn}concat=n=${keeps.length}:v=1:a=1[outv][outa]" \\`,
+    '  -map "[outv]" -map "[outa]" -c:v libx264 -preset veryfast -crf 18 -c:a aac -b:a 192k \\',
+    '  highlight.mp4',
+    'echo "✓ highlight.mp4"'
+  ].join('\n');
+
+  showExportModal({ fast, accurate, single, keeps, totalDuration: keeps.reduce((s, r) => s + (r.end - r.start), 0) });
+}
+
+function showExportModal({ fast, accurate, single, keeps, totalDuration }){
+  const existing = $('#export-modal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-backdrop';
+  modal.id = 'export-modal';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:640px">
+      <div class="modal-header">
+        <h3>导出集锦 · ${keeps.length} 个片段 · ${fmtDuration(totalDuration)}</h3>
+        <button class="btn btn-icon" data-close>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body" style="max-height:52vh;overflow-y:auto">
+        <p style="font-size:13px;color:var(--text-2);margin-bottom:16px">
+          集锦预览已可播放。要导出成片，选择一种方式——浏览器内导出会重新编码为 WebM；FFmpeg 脚本保留原始画质。
+        </p>
+
+        <div class="export-option" data-mode="browser">
+          <div class="export-option-head">
+            <span class="export-option-title">浏览器内直接导出</span>
+            <span class="export-badge quick">最方便</span>
+          </div>
+          <div class="export-option-desc">把当前预览（WebM）下载到本机。无需安装任何软件。</div>
+          <button class="btn btn-sm" style="margin-top:8px" data-download-browser>下载 WebM 预览</button>
+        </div>
+
+        <div class="export-option">
+          <div class="export-option-head">
+            <span class="export-option-title">FFmpeg 快速拼接</span>
+            <span class="export-badge quick">秒级完成</span>
+          </div>
+          <div class="export-option-desc"><code>-c copy</code> 无损拼接，不重新编码。代价：切点会吸附到视频关键帧，可能偏移 0~2 秒。</div>
+          <button class="btn btn-sm" style="margin-top:8px" data-download="fast">下载脚本</button>
+        </div>
+
+        <div class="export-option">
+          <div class="export-option-head">
+            <span class="export-option-title">FFmpeg 精确拼接</span>
+            <span class="export-badge accurate">切点精确</span>
+          </div>
+          <div class="export-option-desc">逐段重编码（crf 18），完全按你调好的切点输出。耗时取决于视频长度。</div>
+          <button class="btn btn-sm" style="margin-top:8px" data-download="accurate">下载脚本</button>
+        </div>
+
+        <div class="export-option">
+          <div class="export-option-head">
+            <span class="export-option-title">FFmpeg 单命令导出</span>
+            <span class="export-badge">一次编解码</span>
+          </div>
+          <div class="export-option-desc">用 <code>filter_complex</code> 一条命令完成剪切+拼接，不落地中间文件。适合片段很多的情况。</div>
+          <button class="btn btn-sm" style="margin-top:8px" data-download="single">下载脚本</button>
+        </div>
+
+        <details style="margin-top:16px">
+          <summary style="cursor:pointer;font-size:12px;color:var(--text-2)">预览脚本内容</summary>
+          <pre id="export-preview" style="margin-top:8px;font-size:11px;line-height:1.5;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;overflow-x:auto;max-height:200px;white-space:pre"></pre>
+        </details>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" data-close>关闭</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  const scripts = { fast, accurate, single };
+  $('#export-preview').textContent = fast;
+
+  modal.querySelectorAll('[data-close]').forEach(b => b.onclick = () => modal.remove());
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+  modal.querySelectorAll('[data-download]').forEach(b => {
+    b.onclick = () => {
+      const mode = b.dataset.download;
+      downloadText(scripts[mode], `roundcut-export-${mode}.sh`);
+      toast('脚本已下载，用 bash 运行即可');
+    };
+  });
+
+  modal.querySelector('[data-download-browser]').onclick = () => {
+    const pv = $('#preview-video');
+    if (!pv.src || !pv.src.startsWith('blob:')){
+      toast('预览尚未生成，请稍候');
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = pv.src;
+    a.download = 'roundcut-highlight.webm';
+    a.click();
+    toast('正在下载 WebM…');
+  };
+}
+
+function downloadText(text, filename){
+  const blob = new Blob([text], { type: 'text/x-shellscript' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* ============== Keyboard shortcuts ============== */
+document.addEventListener('keydown', (e) => {
+  if (e.target.matches('input, select, textarea')) return;
+  if ($('#export-modal')){
+    if (e.key === 'Escape') $('#export-modal').remove();
+    return;
+  }
+  if ($('#edit-modal').classList.contains('hidden') === false){
+    if (e.key === 'Escape') $('#edit-modal').classList.add('hidden');
+    return;
+  }
+  /* 快捷键面板：任何页面都能开关，Esc 关闭。
+     放在 view 检查之前，否则上传页按 ? 和 Esc 都无效。 */
+  if (e.key === '?'){ toggleHelp(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && !$('#help-overlay').classList.contains('hidden')){
+    $('#help-overlay').classList.add('hidden');
+    e.preventDefault();
+    return;
+  }
+  if (state.view !== 'browser' && state.view !== 'preview') return;
+
+  // Grid view shortcuts
+  if (state.gridOpen){
+    if (e.key === 'Escape' || e.key === 'g' || e.key === 'G'){
+      toggleGridView();
+      e.preventDefault();
+    }
+    return;
+  }
+
+  switch(e.key){
+    case ' ':
+    case 'Spacebar':
+      if (state.view === 'browser'){ togglePlay(); e.preventDefault(); }
+      break;
+    case 'ArrowLeft':
+      if (state.view === 'browser'){ selectRally(state.currentIndex - 1, true); e.preventDefault(); }
+      break;
+    case 'ArrowRight':
+      if (state.view === 'browser'){ selectRally(state.currentIndex + 1, true); e.preventDefault(); }
+      break;
+    case 'Enter':
+      if (state.view === 'browser'){ toggleStatus('keep'); e.preventDefault(); }
+      break;
+    case 'Delete':
+    case 'Backspace':
+      if (state.view === 'browser'){ toggleStatus('drop'); e.preventDefault(); }
+      break;
+    case '1':
+      if (state.view === 'browser'){ toggleStatus('keep'); e.preventDefault(); }
+      break;
+    case '2':
+      if (state.view === 'browser'){ toggleStatus('drop'); e.preventDefault(); }
+      break;
+    case 'g':
+    case 'G':
+      toggleGridView();
+      e.preventDefault();
+      break;
+  }
+});
+
+/* ============== Init ============== */
+setupUpload();
+// 启动时加载历史记录列表（IndexedDB 未就绪时静默跳过，不影响正常使用）
+renderProjectList();
+
+/* 快捷键面板：全局可用（按钮在顶栏，任何页面都能点开），
+   所以绑定在这里而不是 renderBrowser 里。 */
+$('#btn-help').onclick = () => toggleHelp();
+function toggleHelp(){
+  $('#help-overlay').classList.toggle('hidden');
+}
+// 点击面板和按钮以外的任何地方都关闭
+document.addEventListener('click', (e) => {
+  const el = $('#help-overlay');
+  if (!el || el.classList.contains('hidden')) return;
+  if (el.contains(e.target) || e.target.closest('#btn-help')) return;
+  el.classList.add('hidden');
+});
+
+// Grid view close button
+$('#btn-grid-close').onclick = toggleGridView;
+</script>
+</body>
+</html>
