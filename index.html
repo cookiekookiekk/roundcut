@@ -10,47 +10,75 @@
      米白底 + 纯白卡片浮起 + 近黑强调，几乎无彩色。
      层次靠「留白深浅 + 细边框」建立，不靠颜色：
        · 页面底 #F7F5F2 米白 → 卡片 #FFFFFF 纯白，靠 1px 边框与极淡阴影区分
-       · 强调色直接用近黑 #1F1D1A，黑底按钮配白字
+       · 强调色直接用近黑 #1C3A52，黑底按钮配白字
      状态色保留低饱和暖调，但比深色主题下加深，以在白底上达标：
        橄榄绿=保留 / 砖红=删除 / 赭黄=待定
      注 1：视频与缩略图容器刻意保持纯黑 #000，背景色会干扰画面判读。
-     注 2：视频/缩略图上的半透明遮罩仍是深色 rgba(12,9,8,…)，与主题无关。 */
+     注 2：视频/缩略图上的半透明遮罩仍是深色 rgba(8,20,32,…)，与主题无关。 */
   :root{
-    --bg:#F7F5F2;      /* 页面底 - 米白 */
+    /* 主题：蓝白为主 + 玫瑰粉点缀，运动感的小清新的调子。
+       蓝色承担主色与「保留」，粉色只做点缀与「删除」，避免颜色打架。 */
+    /* 思源宋体：上传页中文用。未装思源时会回落到系统宋体（Songti SC / SimSun），
+       观感仍是宋体。 */
+    --font-serif:"Source Han Serif SC","Source Han Serif CN","Noto Serif SC","Songti SC","STSong","SimSun",serif;
+    /* logo 那道蓝墨渐变，中文标题复用它，跟花体字呼应 */
+    --grad-ink:linear-gradient(100deg,#1C3A52,#4A90D9 72%,#7FB3E8);
+
+    /* 界面正文字体栈（中文优先），花体键里的 ⌘ 这类符号要显式回到它，
+       否则会继承花体、字形对不上 */
+    --font-ui:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei","Helvetica Neue",Arial,sans-serif;
+    /* 花体手写字体：logo 与顶栏快捷键按钮共用。全走系统字体栈，
+       不引外部字体（保持单文件零依赖）。macOS 的 Snell Roundhand 最漂亮。 */
+    --font-script:"Snell Roundhand","Savoye LET","Segoe Script","Brush Script MT",cursive;
+
+    --bg:#F2F7FC;      /* 页面底 - 淡蓝白 */
     --bg-1:#FFFFFF;    /* 顶栏 / 面板 - 纯白浮起 */
     --bg-2:#FFFFFF;    /* 卡片 */
-    --bg-3:#EFEBE4;    /* 输入框 / 悬停 */
-    --line:#E3DED5;    /* 分隔线 */
-    --line-2:#CFC8BC;  /* 悬停态分隔线 */
+    --bg-3:#E9F2FA;    /* 输入框 / 悬停 */
+    --line:#E6F0FA;    /* 分隔线 - 刻意压得很淡，层次靠落影与底色区分而非描边 */
+    --line-2:#CFE0F1;  /* 悬停态分隔线 */
 
-    --text:#1F1D1A;    /* 近黑 15.45:1 */
-    --text-2:#55504A;  /* 深灰  7.33:1 */
-    --text-3:#6E675E;  /* 中灰  5.13:1 */
+    --text:#1C3A52;    /* 深蓝墨 */
+    --text-2:#4C6C8A;  /* 中蓝灰 */
+    --text-3:#7893AE;  /* 浅蓝灰 */
 
-    --accent:#1F1D1A;      /* 近黑 - 极简无彩色强调 */
-    --accent-2:#55504A;
-    --accent-ink:#FFFFFF;  /* 黑底上的白字 */
+    --accent:#4A90D9;      /* 天蓝 - 主强调色 */
+    --accent-2:#7FB6E8;    /* 浅天蓝 - 渐变 / 次要 */
+    --accent-3:#2E6FB0;    /* 深蓝 - hover */
+    --accent-ink:#FFFFFF;  /* 蓝底上的白字 */
 
-    --keep:#4F7A3F;                    /* 橄榄绿 */
-    --keep-bg:rgba(79,122,63,.10);
-    --keep-line:rgba(79,122,63,.35);
-    --drop:#A8452E;                    /* 砖红 */
-    --drop-bg:rgba(168,69,46,.10);
-    --drop-line:rgba(168,69,46,.35);
-    --pending:#856318;                 /* 赭黄 */
-    --pending-bg:rgba(133,99,24,.08);
-    --pending-line:rgba(133,99,24,.30);
+    --keep:#2E86C1;                    /* 保留 - 蓝 */
+    --keep-bg:rgba(74,144,217,.11);
+    --keep-line:rgba(74,144,217,.38);
+    --drop:#D95F7C;                    /* 删除 - 玫瑰粉（点缀色） */
+    --drop-bg:rgba(232,117,143,.11);
+    --drop-line:rgba(232,117,143,.38);
+    --drop-bright:#E8758F;             /* 亮粉 - 装饰用（进度条、标签底） */
+    --pending:#6E8CA8;                 /* 未决 - 灰蓝 */
+    --pending-bg:rgba(110,140,168,.11);
+    --pending-line:rgba(110,140,168,.34);
 
-    --radius:8px;
-    --radius-sm:5px;
-    --shadow:0 2px 12px rgba(31,29,26,.08);
+    /* 圆角整体放大：旧值偏硬，柔和感主要来自这里。
+       按钮一律胶囊（999px），容器用大圆角，避免方方正正的「框感」。 */
+    --radius:20px;
+    --radius-sm:14px;
+    --radius-lg:28px;
+    /* 弹性曲线：所有位移都带一点回弹，动作才「活」而不生硬 */
+    --ease-bounce:cubic-bezier(.34,1.56,.64,1);
+    --shadow:0 4px 20px rgba(35,85,135,.10);
+    --shadow-sm:0 2px 8px rgba(35,85,135,.07);
+    /* 抬起态：hover 统一用这一档，界面才有统一的「浮起来」语汇 */
+    --shadow-lift:0 10px 26px rgba(28,58,82,.15);
+    /* 球的立体高光与落影，运动元素的统一质感 */
+    --ball-hi:#FFFFFF;
+    --ball-shadow:0 3px 12px rgba(35,85,135,.30), inset 0 -3px 8px rgba(0,0,0,.13);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
   body{
     background:var(--bg);
     color:var(--text);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei","Helvetica Neue",Arial,sans-serif;
+    font-family:var(--font-ui);
     font-size:14px;
     line-height:1.5;
     -webkit-font-smoothing:antialiased;
@@ -58,12 +86,57 @@
     overflow-x:hidden;
   }
   button{font-family:inherit;font-size:inherit;color:inherit;background:none;border:none;cursor:pointer}
-  input,select{font-family:inherit;font-size:inherit;color:inherit;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius-sm);padding:6px 10px;outline:none}
-  input:focus,select:focus{border-color:var(--accent)}
+  /* 输入框：不描边，用内凹阴影做「陷进去」的层次，focus 时才浮出蓝圈 */
+  input,select{
+    font-family:inherit;font-size:inherit;color:inherit;
+    background:var(--bg-3);border:1px solid transparent;border-radius:999px;
+    padding:7px 14px;outline:none;
+    box-shadow:inset 0 1px 3px rgba(28,58,82,.09);
+    transition:box-shadow .18s ease,background .18s ease;
+  }
+  input:focus,select:focus{
+    background:var(--bg-2);
+    box-shadow:inset 0 0 0 1.6px var(--accent), 0 0 0 4px rgba(74,144,217,.13);
+  }
+  /* 滑块做成「跑道 + 小球」：拖参数这件事本身就该有运动感。
+     原生 accent-color 的滑块太方太硬，这里整条换成轨道渐变 + 球体拇指。 */
+  input[type="range"]{
+    -webkit-appearance:none;appearance:none;
+    /* 上下各 7px 透明边框只是撑出点击热区，内容区仍是 6px 高的轨道，
+       这样 18px 的球体拇指无论浏览器把轨道放在哪，都正好压在轨道中心。 */
+    height:20px;padding:0;border:7px solid transparent;
+    /* 负外边距把撑出来的热区收回布局，视觉间距仍然按 6px 的轨道算 */
+    margin:-7px 0;
+    background:transparent;box-shadow:none;cursor:pointer;
+  }
+  input[type="range"]:focus{background:transparent;box-shadow:none;border-color:transparent}
+  input[type="range"]::-webkit-slider-runnable-track{
+    height:6px;border-radius:999px;
+    background:linear-gradient(90deg,var(--accent-2),var(--accent));
+    box-shadow:inset 0 1px 2px rgba(28,58,82,.15);
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;
+    width:18px;height:18px;margin-top:-6px;border-radius:50%;
+    border:2px solid #FFFFFF;
+    background:radial-gradient(circle at 34% 28%,#FFFFFF 0%,var(--accent-2) 45%,var(--accent) 92%);
+    box-shadow:0 3px 8px rgba(35,85,135,.32);
+    transition:transform .16s var(--ease-bounce);
+  }
+  input[type="range"]:hover::-webkit-slider-thumb{transform:scale(1.18)}
+  input[type="range"]:active::-webkit-slider-thumb{transform:scale(.94)}
+  input[type="range"]::-moz-range-track{
+    height:6px;border-radius:999px;
+    background:linear-gradient(90deg,var(--accent-2),var(--accent));
+  }
+  input[type="range"]::-moz-range-thumb{
+    width:16px;height:16px;border-radius:50%;border:2px solid #FFFFFF;
+    background:var(--accent);box-shadow:0 3px 8px rgba(35,85,135,.32);
+  }
   ::-webkit-scrollbar{width:10px;height:10px}
   ::-webkit-scrollbar-track{background:transparent}
-  ::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:5px}
-  ::-webkit-scrollbar-thumb:hover{background:#B8B0A4}
+  ::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:9px}
+  ::-webkit-scrollbar-thumb:hover{background:#A8C4DD}
 
   /* ============== Layout ============== */
   .app{min-height:100vh;display:flex;flex-direction:column}
@@ -72,18 +145,12 @@
   body.fixed{overflow:hidden}
   body.fixed .app{height:100vh;overflow:hidden}
   .topbar{
-    height:46px;border-bottom:1px solid var(--line);
+    height:52px;border-bottom:1px solid var(--line);
     display:flex;align-items:center;padding:0 14px;gap:12px;
     background:var(--bg-1);
     position:sticky;top:0;z-index:50;
   }
-  .logo{display:flex;align-items:center;gap:8px;font-weight:600;letter-spacing:.3px}
-  .logo-mark{
-    width:28px;height:28px;border-radius:8px;
-    background:linear-gradient(135deg,#1F1D1A,#55504A);
-    display:flex;align-items:center;justify-content:center;
-    color:var(--accent-ink);font-weight:700;font-size:13px;
-  }
+  .logo{display:flex;align-items:center;gap:8px}
   .topbar .spacer{flex:1}
   .pill{
     display:inline-flex;align-items:center;gap:6px;
@@ -92,65 +159,273 @@
   }
   .pill .dot{width:6px;height:6px;border-radius:50%;background:var(--text-3)}
   .kbd{
-    display:inline-block;padding:1px 6px;border-radius:4px;
+    display:inline-block;padding:1px 6px;border-radius:7px;
     border:1px solid var(--line-2);background:var(--bg-2);
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
     font-size:11px;color:var(--text-2);min-width:18px;text-align:center;
   }
 
-  /* ============== Buttons ============== */
+  /* ============== Buttons ==============
+     全部胶囊化 + 抬起/按下两段动效：hover 浮起、active 回弹，
+     不再靠 1px 描边撑边界，层次交给落影与顶部高光。 */
   .btn{
     display:inline-flex;align-items:center;justify-content:center;gap:6px;
-    padding:8px 14px;border-radius:var(--radius-sm);
-    background:var(--bg-3);border:1px solid var(--line);
+    padding:9px 16px;border-radius:999px;
+    background:var(--bg-2);border:1px solid transparent;
     color:var(--text);font-size:13px;font-weight:500;
-    transition:all .15s ease;
+    box-shadow:0 2px 10px rgba(28,58,82,.075), inset 0 1px 0 rgba(255,255,255,.75);
+    transition:transform .2s var(--ease-bounce),box-shadow .2s ease,background .2s ease;
   }
-  .btn:hover{background:var(--line);border-color:var(--line-2)}
+  .btn:hover{
+    transform:translateY(-2px);
+    box-shadow:var(--shadow-lift), inset 0 1px 0 rgba(255,255,255,.9);
+  }
+  .btn:active{transform:translateY(0) scale(.95)}
+  /* 主按钮：斜向渐变 + hover 时渐变滑过一段，像一道光扫过 */
   .btn-primary{
-    background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600;
+    background:linear-gradient(120deg,var(--accent) 0%,var(--accent-2) 50%,var(--accent) 100%);
+    background-size:230% 100%;background-position:0% 0;
+    border-color:transparent;color:var(--accent-ink);font-weight:600;
+    box-shadow:0 6px 18px rgba(74,144,217,.30), inset 0 1px 0 rgba(255,255,255,.34);
   }
-  .btn-primary:hover{background:#C88F4A;border-color:#C88F4A}
-  .btn-ghost{background:transparent;border:1px solid transparent}
-  .btn-ghost:hover{background:var(--bg-2);border-color:var(--line)}
-  .btn-danger{background:var(--drop-bg);border-color:var(--drop-line);color:#DD917A}
-  .btn-danger:hover{background:rgba(168,69,46,.18)}
-  .btn-keep{background:var(--keep-bg);border-color:var(--keep-line);color:#A8BE8E}
-  .btn-keep:hover{background:rgba(79,122,63,.18)}
-  .btn-sm{padding:4px 8px;font-size:12px}
+  .btn-primary:hover{
+    background-position:100% 0;
+    box-shadow:0 12px 28px rgba(74,144,217,.42), inset 0 1px 0 rgba(255,255,255,.42);
+  }
+  .btn-ghost{background:transparent;box-shadow:none}
+  .btn-ghost:hover{background:var(--bg-2);box-shadow:0 4px 14px rgba(28,58,82,.10)}
+  .btn-danger{
+    background:var(--drop-bg);border-color:transparent;color:var(--drop);
+    box-shadow:0 2px 10px rgba(200,80,110,.13), inset 0 1px 0 rgba(255,255,255,.7);
+  }
+  .btn-danger:hover{background:rgba(232,117,143,.20);box-shadow:0 10px 24px rgba(200,80,110,.22)}
+  .btn-keep{
+    background:var(--keep-bg);border-color:transparent;color:var(--keep);
+    box-shadow:0 2px 10px rgba(74,144,217,.15), inset 0 1px 0 rgba(255,255,255,.7);
+  }
+  .btn-keep:hover{background:rgba(74,144,217,.20);box-shadow:0 10px 24px rgba(74,144,217,.24)}
+  .btn-sm{padding:5px 12px;font-size:12px}
+  /* 图标键做成正圆，比方块柔和 */
   .btn-icon{
-    width:32px;height:32px;padding:0;
+    width:34px;height:34px;padding:0;border-radius:999px;
     display:inline-flex;align-items:center;justify-content:center;
   }
   .btn:disabled,.btn[disabled]{opacity:0.4;cursor:not-allowed;pointer-events:none}
+
+  /* ============== 球 · 运动元素 ============== */
+  /* 网球质感：白蓝渐变 + 高光 + 两道白色缝线。
+     主交互键（播放 / 保留 / 删除）与品牌标记都用它，运动感就来自这里。
+     缝线用椭圆只保留单侧边框画出，比 SVG 轻量且不随尺寸失真。 */
+  .ball{
+    position:relative;flex-shrink:0;
+    border-radius:50%;
+    display:inline-flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 32% 26%,#FFFFFF 0%,var(--accent-2) 40%,var(--accent) 88%);
+    box-shadow:var(--ball-shadow);
+    color:#FFFFFF;
+  }
+  .ball::before,.ball::after{
+    content:"";position:absolute;top:14%;height:72%;width:50%;
+    border:1.6px solid rgba(255,255,255,.85);border-radius:50%;
+    pointer-events:none;
+  }
+  .ball::before{left:-13%;border-right-color:transparent;border-top-color:transparent;border-bottom-color:transparent}
+  .ball::after{right:-13%;border-left-color:transparent;border-top-color:transparent;border-bottom-color:transparent}
+  /* 粉色球：给「删除」用，作为蓝之外的点缀色 */
+  .ball-pink{
+    background:radial-gradient(circle at 32% 26%,#FFFFFF 0%,#F7B3C1 40%,var(--drop-bright) 88%);
+    box-shadow:0 3px 12px rgba(200,80,110,.26), inset 0 -3px 8px rgba(0,0,0,.12);
+  }
+  /* 纯色球：缝线会太挤的小尺寸用 */
+  .ball-plain::before,.ball-plain::after{display:none}
+
+  .ball-btn{
+    width:50px;height:50px;padding:0;border:none;cursor:pointer;
+    transition:transform .22s var(--ease-bounce);
+  }
+  /* 按下时球被压扁一点再回弹，像真的按在一颗球上 */
+  .ball-btn:hover{transform:translateY(-3px) scale(1.06)}
+  .ball-btn:active{transform:translateY(1px) scale(.88)}
+  .ball-btn svg{position:relative;z-index:2;filter:drop-shadow(0 1px 2px rgba(0,0,0,.28))}
+
+  /* 按钮里的装饰小球 */
+  .ball-dot{width:19px;height:19px}
+  .ball-dot::before,.ball-dot::after{border-width:1.1px}
+  .pill-btn{border-radius:999px;padding:5px 14px 5px 7px;gap:7px}
+
+  /* 弹跳球加载：替换原来的旋转圆环，运动感更直接 */
+  .ball-loader{display:flex;align-items:center;justify-content:center;gap:9px;height:56px;margin-bottom:22px}
+  .ball-loader i{
+    width:15px;height:15px;border-radius:50%;
+    background:radial-gradient(circle at 32% 28%,#FFFFFF 0%,var(--accent-2) 45%,var(--accent) 90%);
+    box-shadow:0 2px 6px rgba(35,85,135,.25);
+    animation:ball-bounce .9s ease-in-out infinite;
+  }
+  .ball-loader i:nth-child(2){animation-delay:.15s}
+  .ball-loader i:nth-child(3){animation-delay:.3s}
+  @keyframes ball-bounce{
+    0%,70%,100%{transform:translateY(0)}
+    35%{transform:translateY(-13px)}
+  }
+
+  /* 上传页的大球：.upload-icon 定义在后面会盖掉 .ball 的底色，
+     所以用双类提权，并把图标改成白色以在球面上看得清 */
+  .upload-icon.ball{
+    width:64px;height:64px;
+    background:radial-gradient(circle at 32% 26%,#FFFFFF 0%,var(--accent-2) 40%,var(--accent) 88%);
+    box-shadow:var(--ball-shadow);
+    color:#FFFFFF;
+  }
+  /* logo：花体手写 "RoundCut"。字体栈见 --font-script（logo 与顶栏快捷键共用）。 */
+  .logo-script{
+    font-family:var(--font-script);
+    font-weight:700;
+    font-size:27px;
+    line-height:1;
+    letter-spacing:.5px;
+    background:linear-gradient(100deg,#1C3A52,#4A90D9 70%,#7FB3E8);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    padding-right:5px; /* 花体最后一笔的"尾巴"别被裁掉 */
+    user-select:none;
+  }
+
+  /* 顶栏「快捷键」按钮：跟 logo 同一套花体手写，做成一枚签名式的文字键。
+     不套按钮胶囊，去掉边框与底色，颜色沿用 logo 那道蓝墨渐变；
+     系统花体没有中文字形，所以这里只能写英文 shortcuts，中文说明放在 data-tip。 */
+  .script-btn{
+    font-family:var(--font-script);
+    font-weight:700;
+    font-size:21px;
+    line-height:1.15;
+    letter-spacing:.4px;
+    padding:4px 10px 6px;
+    border-color:transparent;
+    box-shadow:none;
+    background:var(--grad-ink);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    transition:transform .18s var(--ease-bounce);
+  }
+  /* ⌘ 符号：父元素是渐变裁剪文字（color:transparent），子元素若继承就完全看不见，
+     所以这里必须显式给实心色；靠颜色深浅而不是 opacity 调层级（opacity 会另起合成层）。 */
+  .script-btn .cmd{
+    font-family:var(--font-ui);
+    font-size:13px;font-weight:600;
+    color:var(--text-3);
+    margin-right:3px;
+    vertical-align:1px;
+    transition:color .18s ease;
+  }
+  .script-btn:hover{
+    background:linear-gradient(100deg,#2E6FB0,#7FB6E8 72%,#A5CFEE);
+    -webkit-background-clip:text;background-clip:text;
+    box-shadow:none;
+    color:transparent;
+    transform:translateY(-1px) rotate(-1.5deg);
+  }
+  .script-btn:hover .cmd{color:var(--accent)}
+  .script-btn:hover .cmd{color:var(--accent)}
+  .script-btn:active{transform:translateY(0) rotate(0) scale(.96)}
+
+  /* ---- 真实球种：跟随运动类型切换（网球 / 羽毛球 / 乒乓球）----
+     球型由内联 SVG 提供，所以这里去掉 CSS 渐变底，只保留落影，
+     让球看起来是"浮"在界面上的实物，而不是一个色块按钮。 */
+  .ball-shape{background:none;box-shadow:none;overflow:visible}
+  .ball-shape::before,.ball-shape::after{display:none}
+  .ball-shape svg{display:block;filter:drop-shadow(0 3px 6px rgba(28,58,82,.22));transition:filter .2s ease}
+  button.ball-shape{transition:transform .22s var(--ease-bounce)}
+  /* 悬停：球弹起来 + 转一点 + 落影拉长，静止时是"放在桌上"，hover 时是"被抛起" */
+  button.ball-shape:hover{transform:translateY(-4px) rotate(-9deg) scale(1.05)}
+  button.ball-shape:hover svg{filter:drop-shadow(0 10px 16px rgba(28,58,82,.26))}
+  button.ball-shape:active{transform:translateY(1px) scale(.9)}
+  .ball-shape.bounce{animation:ball-bounce .9s ease-in-out infinite}
+  .ball-shape.bounce.d2{animation-delay:.15s}
+  .ball-shape.bounce.d3{animation-delay:.3s}
+  /* 球的画板：SVG 撑满容器，球种切换只换这一层的 innerHTML，
+     这样叠加在球上的角标不会被一起冲掉 */
+  .ball-art{width:100%;height:100%;display:block;line-height:0}
+  /* 球角上的小徽章：说明这个球是干什么的（如播放键右下角的三角） */
+  .ball-badge{
+    position:absolute;right:-3px;bottom:-3px;
+    width:18px;height:18px;border-radius:50%;
+    background:var(--bg-1);color:var(--accent);
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 7px rgba(28,58,82,.30);
+    z-index:3;pointer-events:none;
+  }
+  /* 弹跳加载：小尺寸球用真实球型，去掉原来的渐变底与固定尺寸 */
+  .ball-loader i.ball-shape{
+    width:24px;height:24px;background:none;box-shadow:none;
+    animation:ball-bounce .9s ease-in-out infinite;
+  }
+  .ball-loader i.ball-shape:nth-child(2){animation-delay:.15s}
+  .ball-loader i.ball-shape:nth-child(3){animation-delay:.3s}
+
+  /* ============== 悬停提示 tooltip ==============
+     说明文字不再平铺在界面上，改为悬停才出现——界面只留操作本身。
+     文案由 data-tip 承载，气泡用 ::after 渲染，纯 CSS 无 JS。 */
+  [data-tip]{position:relative}
+  [data-tip]::after{
+    content:attr(data-tip);
+    position:absolute;left:50%;bottom:calc(100% + 9px);
+    transform:translateX(-50%);
+    background:var(--text);color:#FFFFFF;
+    font-size:11.5px;font-weight:400;line-height:1.55;letter-spacing:.1px;
+    padding:8px 11px;border-radius:10px;
+    width:max-content;max-width:250px;text-align:left;
+    box-shadow:0 8px 24px rgba(28,58,82,.24);
+    opacity:0;visibility:hidden;pointer-events:none;z-index:300;
+    transition:opacity .16s ease,visibility .16s;
+  }
+  [data-tip]::before{
+    content:"";position:absolute;left:50%;bottom:calc(100% + 4px);
+    transform:translateX(-50%);
+    border:5px solid transparent;border-top-color:var(--text);
+    opacity:0;visibility:hidden;z-index:300;
+    transition:opacity .16s ease,visibility .16s;
+  }
+  [data-tip]:hover::after{opacity:1;visibility:visible}
+  [data-tip]:hover::before{opacity:1;visibility:visible}
+  /* 靠右边缘的元素气泡会溢出屏幕，改为右对齐展开 */
+  [data-tip].tip-right::after{left:auto;right:0;transform:none}
+  [data-tip].tip-right::before{left:auto;right:16px;transform:none}
+  /* 问号标记：说明被折叠后，用它提示"这里有解释" */
+  .tip-q{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:14px;height:14px;margin-left:5px;vertical-align:middle;
+    border-radius:50%;background:var(--bg-3);color:var(--text-3);
+    font-size:9px;font-weight:600;cursor:help;flex-shrink:0;
+    transition:background .15s ease,color .15s ease;
+  }
+  [data-tip]:hover>.tip-q,.tip-q:hover{background:var(--accent);color:#FFFFFF}
 
   /* ============== Upload ============== */
   .upload-page{
     flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
     padding:44px 20px;
+    /* 顶部一团极淡的蓝光，像场馆顶灯打下来，页面不再是一块平的灰白 */
+    background:radial-gradient(900px 460px at 50% -14%, rgba(74,144,217,.14), transparent 72%);
+    /* 首屏中文整体走思源宋体；输入框里的数值拉回无衬线，免得数字发虚 */
+    font-family:var(--font-serif);
   }
-  .upload-hero{
-    text-align:center;margin-bottom:40px;
-  }
-  .upload-hero h1{
-    font-size:32px;font-weight:700;letter-spacing:-.5px;margin-bottom:12px;
-    background:linear-gradient(180deg,#1F1D1A,#55504A);
-    -webkit-background-clip:text;background-clip:text;color:transparent;
-  }
-  .upload-hero p{color:var(--text-2);font-size:15px;max-width:520px;margin:0 auto}
-
+  .upload-page input,.upload-page select,.upload-page .sens-val{font-family:var(--font-ui)}
+  /* 说明：首屏中文的「宋体 + 蓝墨渐变」统一放在样式表末尾 —— 这些元素在
+     Upload / 最近项目 段里各自设过 color，靠后的规则才能压住它们。 */
   .upload-card{
     width:100%;max-width:680px;
-    background:var(--bg-1);border:1px dashed var(--line-2);
-    border-radius:14px;padding:32px;transition:all .2s ease;
+    background:var(--bg-1);border:1px solid transparent;
+    border-radius:28px;padding:32px;transition:all .25s ease;
+    box-shadow:0 12px 44px rgba(28,58,82,.11);
   }
   .upload-card.dragover{
-    border-color:var(--accent);background:rgba(31,29,26,.05);
+    box-shadow:0 16px 52px rgba(74,144,217,.26);background:#FBFDFF;
   }
   .upload-drop{
-    text-align:center;padding:32px 20px;cursor:pointer;
-    border-radius:12px;
+    text-align:center;padding:34px 20px;cursor:pointer;
+    border-radius:20px;background:var(--bg-3);
+    transition:background .2s ease,transform .2s ease;
   }
+  .upload-drop:hover{background:#DFEDF9;transform:translateY(-1px)}
+  .upload-card.dragover .upload-drop{background:rgba(74,144,217,.14)}
   .upload-icon{
     width:64px;height:64px;margin:0 auto 20px;
     background:var(--bg-3);border-radius:16px;
@@ -169,25 +444,141 @@
   .upload-divider:before{left:0}
   .upload-divider:after{right:0}
 
+  /* ============== 上传区比赛小场景 ==============
+     选中球种后，上传框里的静态大球换成「两人对打」的循环动画：
+     外层横移（一个半回合）× 内层抛物线（起落各一次）= 球的弧线，
+     球员的持拍臂用同一节奏回摆，击球瞬间正好扫到球的落点。 */
+  .upload-scene{position:relative;width:232px;height:118px;margin:0 auto 16px}
+  .sc-ground{
+    position:absolute;left:4px;right:4px;bottom:14px;height:3px;border-radius:99px;
+    background:linear-gradient(90deg,rgba(76,108,138,.18),rgba(74,144,217,.45),rgba(76,108,138,.18));
+  }
+  /* 球网：侧面看是一条竖带 + 顶端白带 */
+  .sc-net{
+    position:absolute;left:50%;bottom:17px;transform:translateX(-50%);
+    width:9px;height:42px;border-radius:0 0 3px 3px;
+    background:repeating-linear-gradient(0deg,rgba(76,108,138,.32) 0 3px,rgba(76,108,138,.13) 3px 6px);
+    border:1.5px solid rgba(76,108,138,.45);border-top:none;
+  }
+  .sc-net::before{
+    content:"";position:absolute;top:-3px;left:-3px;right:-3px;height:6px;
+    background:#FFFFFF;border-radius:3px;box-shadow:0 1px 3px rgba(28,58,82,.20);
+  }
+  /* 球台（乒乓球）：蓝台面 + 中间小白网 + 两条腿 */
+  .sc-table{
+    position:absolute;left:36px;right:36px;bottom:18px;height:11px;border-radius:3px;
+    background:linear-gradient(180deg,#4A90D9,#2E6FB0);
+    box-shadow:0 3px 10px rgba(46,111,176,.30);
+  }
+  .sc-table::before{
+    content:"";position:absolute;left:50%;top:-7px;transform:translateX(-50%);
+    width:3px;height:7px;background:#FFFFFF;border-radius:1px;
+    box-shadow:0 0 0 1px rgba(46,111,176,.35);
+  }
+  .sc-tleg{position:absolute;bottom:1px;width:5px;height:17px;border-radius:0 0 2px 2px;background:#2E5474}
+  .sc-tleg.l{left:54px}
+  .sc-tleg.r{right:54px}
+  /* 足球：中圈 + 开球点 */
+  .sc-center{
+    position:absolute;left:50%;bottom:15px;transform:translateX(-50%);
+    width:42px;height:21px;border:2.5px solid rgba(74,144,217,.32);
+    border-bottom:none;border-radius:42px 42px 0 0;
+  }
+  .sc-center::after{
+    content:"";position:absolute;left:50%;bottom:-1px;transform:translateX(-50%);
+    width:5px;height:5px;border-radius:50%;background:rgba(74,144,217,.45);
+  }
+  /* 球员：头 + 身 + 双腿是静态的，只有持拍臂在摆 */
+  .sc-player{position:absolute;bottom:17px;width:46px;height:62px;line-height:0}
+  .sc-player.p1{left:22px}
+  .sc-player.p2{right:22px;transform:scaleX(-1)}   /* 右侧球员整体镜像，挥拍方向自然朝向中间 */
+  .sc-player svg{width:100%;height:100%;display:block}
+  .sc-arm{
+    transform-box:view-box;transform-origin:26px 21.5px;
+    animation:sc-swing 4.8s ease-in-out infinite;
+  }
+  /* 一个完整往返 4.8s：击球(0%) → 引拍举起到位(46%) → 等球 → 下压击球(100%)。
+     右侧球员滞后半个往返，正好在球到达时挥拍。 */
+  @keyframes sc-swing{
+    0%{transform:rotate(6deg)}
+    12%{transform:rotate(-2deg)}
+    46%{transform:rotate(-58deg)}
+    86%{transform:rotate(-58deg)}
+    100%{transform:rotate(6deg)}
+  }
+  .sc-player.p2 .sc-arm{animation-delay:-2.4s}
+  /* 球的弧线：横移往返 + 垂直起落，两层叠加出抛物线 */
+  .sc-balltrack{
+    position:absolute;left:44px;right:44px;bottom:36px;
+    animation:sc-x 2.4s ease-in-out infinite alternate;
+  }
+  .sc-ball{
+    width:22px;height:22px;line-height:0;
+    animation:sc-arc 2.4s ease-in-out infinite;
+  }
+  .sc-ball svg{display:block;width:100%;height:100%;filter:drop-shadow(0 2px 3px rgba(28,58,82,.20))}
+  @keyframes sc-x{from{transform:translateX(0)}to{transform:translateX(var(--sc-dist,122px))}}
+  @keyframes sc-arc{0%,100%{transform:translateY(0)}50%{transform:translateY(var(--sc-arc,-34px))}}
+  /* 落地影：跟球横移，球越高影越小越淡 */
+  .sc-shadowtrack{
+    position:absolute;left:46px;right:46px;bottom:16px;
+    animation:sc-x 2.4s ease-in-out infinite alternate;
+  }
+  .sc-shadow{
+    width:18px;height:5px;margin:0 auto;border-radius:50%;
+    background:rgba(28,58,82,.18);
+    animation:sc-shadow 2.4s ease-in-out infinite;
+  }
+  @keyframes sc-shadow{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.5);opacity:.45}}
+
+  /* ---- 球种差异 ---- */
+  /* 羽毛球：网更高，球飞得更高 */
+  .upload-scene[data-sport="badminton"] .sc-net{height:56px}
+  .upload-scene[data-sport="badminton"] .sc-balltrack{bottom:34px}
+  /* 乒乓球：撤掉地线与球网，摆上球台，球员站到台两端，球贴台飞 */
+  .upload-scene[data-sport="tabletennis"] .sc-net,
+  .upload-scene[data-sport="tabletennis"] .sc-ground{display:none}
+  .upload-scene[data-sport="tabletennis"] .sc-player{bottom:30px;height:54px}
+  .upload-scene[data-sport="tabletennis"] .sc-player.p1{left:4px}
+  .upload-scene[data-sport="tabletennis"] .sc-player.p2{right:4px}
+  .upload-scene[data-sport="tabletennis"] .sc-balltrack{left:56px;right:56px;bottom:52px;--sc-dist:103px}
+  .upload-scene[data-sport="tabletennis"] .sc-ball{width:17px;height:17px}
+  .upload-scene[data-sport="tabletennis"] .sc-shadowtrack{left:58px;right:58px;bottom:29px;--sc-dist:98px}
+  /* 足球：没网，球贴地飞行且带自旋 */
+  .upload-scene[data-sport="football"] .sc-net{display:none}
+  .upload-scene[data-sport="football"] .sc-balltrack{bottom:28px}
+  /* 自旋放在内层 svg 上：外层 .sc-ball 已经用 transform 画弧线，同一属性会互相覆盖 */
+  .upload-scene[data-sport="football"] .sc-ball svg{animation:sc-roll 1.8s linear infinite}
+  @keyframes sc-roll{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+
   .sport-options{
     display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;
   }
   .sport-opt{
-    padding:14px 8px;border-radius:var(--radius-sm);
-    background:var(--bg-2);border:1px solid var(--line);
+    padding:16px 8px 13px;border-radius:20px;
+    background:var(--bg-2);border:1px solid transparent;
+    box-shadow:0 2px 10px rgba(28,58,82,.06);
     cursor:pointer;text-align:center;
-    transition:all .15s ease;
+    transition:all .18s cubic-bezier(.34,1.3,.64,1);
   }
-  .sport-opt:hover{border-color:var(--line-2);background:var(--bg-3)}
+  .sport-opt:hover{
+    background:var(--bg-1);box-shadow:0 7px 20px rgba(28,58,82,.13);
+    transform:translateY(-2px);
+  }
+  /* 选中态用渐变底 + inset 描边，不用 1px 实线边框，避免生硬的线框感 */
   .sport-opt.selected{
-    border-color:var(--accent);background:rgba(31,29,26,.1);
+    background:linear-gradient(180deg,rgba(74,144,217,.14),rgba(74,144,217,.05));
+    box-shadow:0 7px 20px rgba(74,144,217,.22), inset 0 0 0 1.6px var(--accent);
   }
   .sport-opt .icon{
-    width:28px;height:28px;margin:0 auto 6px;color:var(--text-2);
+    width:44px;height:44px;margin:0 auto 8px;
+    transition:transform .2s var(--ease-bounce);
   }
-  .sport-opt.selected .icon{color:var(--accent)}
+  /* 悬停时球持续弹跳，选项目这件事立刻有了"手感" */
+  .sport-opt:hover .icon{animation:ball-bounce .9s ease-in-out infinite}
+  .sport-opt.selected .icon{transform:scale(1.1) rotate(-8deg)}
   .sport-opt .label{font-size:13px;font-weight:500}
-  .sport-opt .hint{font-size:11px;color:var(--text-3);margin-top:2px}
+  .sport-opt.selected .label{color:var(--accent);font-weight:600}
 
   .upload-form-row{
     display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;
@@ -214,13 +605,19 @@
   .processing-page h2{font-size:20px;font-weight:600;margin-bottom:8px}
   .processing-page p{color:var(--text-2);margin-bottom:24px}
   .processing-bar{
-    width:320px;height:6px;border-radius:3px;
+    width:320px;height:8px;border-radius:999px;
     background:var(--bg-3);overflow:hidden;
+    box-shadow:inset 0 1px 3px rgba(28,58,82,.10);
   }
+  /* 条纹向前流动：进度条本身就该像在"跑" */
   .processing-bar-fill{
-    height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2));
-    width:0%;transition:width .3s ease;
+    height:100%;width:0%;
+    background:linear-gradient(90deg,var(--accent) 0%,var(--accent-2) 50%,var(--accent) 100%);
+    background-size:200% 100%;
+    animation:bar-run 1.3s linear infinite;
+    transition:width .3s ease;
   }
+  @keyframes bar-run{to{background-position:-200% 0}}
   .processing-step{margin-top:14px;font-size:12px;color:var(--text-3);font-family:ui-monospace,monospace}
 
   /* ============== Browser ============== */
@@ -237,7 +634,7 @@
   }
   .target-duration .label{font-size:12px;color:var(--text-2)}
   .target-btn{
-    padding:4px 10px;border-radius:6px;
+    padding:4px 10px;border-radius:10px;
     background:var(--bg-2);border:1px solid var(--line);
     font-size:12px;font-weight:500;color:var(--text-2);
   }
@@ -266,11 +663,11 @@
     flex:1;min-width:200px;max-width:320px;
   }
   .progress-bar{
-    height:6px;background:var(--bg-3);border-radius:3px;overflow:hidden;
+    height:6px;background:var(--bg-3);border-radius:10px;overflow:hidden;
     margin-top:6px;
   }
   .progress-bar-fill{
-    height:100%;background:var(--keep);border-radius:3px;
+    height:100%;background:var(--keep);border-radius:10px;
     transition:width .25s ease,background-color .25s ease;
   }
   .progress-bar-fill.over{background:var(--pending)}
@@ -325,10 +722,10 @@
     pointer-events:none;
   }
   .video-overlay .info-chip{
-    background:rgba(12,9,8,.7);padding:4px 10px;border-radius:6px;
+    background:rgba(8,20,32,.7);padding:4px 10px;border-radius:10px;
     font-size:12px;font-variant-numeric:tabular-nums;
     backdrop-filter:blur(8px);
-    border:1px solid rgba(242,236,228,.1);
+    border:1px solid rgba(216,231,245,.1);
   }
 
   .video-controls{
@@ -339,34 +736,39 @@
   }
   .timeline-wrap{
     position:relative;height:40px;
-    background:var(--bg-2);border-radius:5px;overflow:hidden;
+    background:var(--bg-3);border-radius:14px;overflow:hidden;
+    box-shadow:inset 0 1px 3px rgba(28,58,82,.09);
   }
   .timeline-track{
     position:absolute;inset:0;cursor:pointer;
   }
   .timeline-buffer{
-    position:absolute;top:0;bottom:0;background:rgba(31,29,26,.12);
+    position:absolute;top:0;bottom:0;background:rgba(28,58,82,.12);
   }
   .timeline-rally{
     position:absolute;top:8px;bottom:8px;
-    border-radius:3px;cursor:pointer;
-    background:var(--bg-3);border:1px solid var(--line);
-    transition:all .15s ease;
+    border-radius:999px;cursor:pointer;
+    background:var(--bg-1);border:1px solid transparent;
+    box-shadow:0 1px 5px rgba(28,58,82,.10);
+    transition:transform .2s var(--ease-bounce),box-shadow .2s ease,background .2s ease;
     overflow:hidden;
   }
-  .timeline-rally.keep{background:var(--keep-bg);border-color:var(--keep-line)}
-  .timeline-rally.drop{background:var(--drop-bg);border-color:var(--drop-line);opacity:.4}
-  .timeline-rally.current{border-color:var(--accent);box-shadow:0 0 0 2px rgba(31,29,26,.3)}
-  .timeline-rally:hover{border-color:var(--text-2)}
+  .timeline-rally.keep{background:var(--keep-bg)}
+  .timeline-rally.drop{background:var(--drop-bg);opacity:.42}
+  .timeline-rally.current{
+    background:rgba(74,144,217,.20);
+    box-shadow:0 3px 12px rgba(74,144,217,.34), inset 0 0 0 1.6px var(--accent);
+  }
+  .timeline-rally:hover{transform:scaleY(1.16);box-shadow:0 4px 14px rgba(28,58,82,.22)}
   .timeline-core{
     position:absolute;top:0;bottom:0;
-    background:rgba(31,29,26,.35);
-    border-left:1px solid rgba(31,29,26,.8);
-    border-right:1px solid rgba(31,29,26,.8);
+    background:rgba(28,58,82,.35);
+    border-left:1px solid rgba(28,58,82,.8);
+    border-right:1px solid rgba(28,58,82,.8);
     pointer-events:none;
   }
-  .timeline-rally.keep .timeline-core{background:rgba(79,122,63,.30);border-color:rgba(79,122,63,.7)}
-  .timeline-rally.drop .timeline-core{background:rgba(168,69,46,.25);border-color:rgba(168,69,46,.6)}
+  .timeline-rally.keep .timeline-core{background:rgba(74,144,217,.30);border-color:rgba(74,144,217,.7)}
+  .timeline-rally.drop .timeline-core{background:rgba(232,117,143,.25);border-color:rgba(232,117,143,.6)}
   .timeline-rally-label{
     position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     font-size:10px;color:var(--text-2);font-weight:600;
@@ -375,6 +777,7 @@
   }
   .timeline-playhead{
     position:absolute;top:0;bottom:0;width:2px;background:var(--accent);
+    box-shadow:0 0 9px rgba(74,144,217,.85);
     pointer-events:none;z-index:5;
   }
   .timeline-playhead:before{
@@ -384,7 +787,7 @@
   }
   .timeline-marker{
     position:absolute;top:0;bottom:0;width:2px;
-    background:rgba(31,29,26,.18);
+    background:rgba(28,58,82,.18);
     pointer-events:none;
   }
   .video-control-row{
@@ -420,25 +823,30 @@
     display:grid;grid-template-columns:64px 1fr;gap:8px;
     position:relative;
   }
-  .rally-card:hover{border-color:var(--line-2);background:var(--bg-3)}
+  /* 状态色条用伪元素画成一根胶囊，跟着圆角走，比 border-left 的直角条柔和 */
+  .rally-card::before{
+    content:"";position:absolute;left:0;top:11px;bottom:11px;width:4px;
+    border-radius:999px;background:transparent;
+    transition:background .2s ease,top .2s ease,bottom .2s ease;
+  }
+  .rally-card.keep::before{background:var(--keep)}
+  .rally-card.drop::before{background:var(--drop)}
+  .rally-card:hover::before{top:7px;bottom:7px}
+  .rally-card:hover{background:var(--bg-3)}
   .rally-card.current{
-    border-color:var(--accent);
-    box-shadow:0 0 0 1px var(--accent);
+    background:var(--bg-3);
+    box-shadow:0 4px 16px rgba(74,144,217,.18), inset 0 0 0 1.6px var(--accent);
   }
-  .rally-card.keep{
-    border-left:3px solid var(--keep);
-  }
-  .rally-card.drop{
-    border-left:3px solid var(--drop);opacity:.65;
-  }
+  .rally-card.drop{opacity:.62}
   .rally-thumb{
-    width:64px;height:40px;border-radius:var(--radius-sm);
+    width:64px;height:40px;border-radius:14px;
     background:#000;position:relative;overflow:hidden;
     display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 8px rgba(28,58,82,.16);
   }
   .rally-thumb img{width:100%;height:100%;object-fit:cover}
   .rally-thumb .play-overlay{
-    position:absolute;inset:0;background:rgba(12,9,8,.4);
+    position:absolute;inset:0;background:rgba(8,20,32,.4);
     display:flex;align-items:center;justify-content:center;
     color:#FFFFFF;opacity:0;transition:opacity .15s ease;
   }
@@ -449,7 +857,7 @@
     font-size:13px;font-weight:600;
   }
   .rally-title .badge{
-    font-size:10px;padding:1px 6px;border-radius:4px;
+    font-size:10px;padding:2px 9px;border-radius:999px;
     font-weight:500;
   }
   .badge.pending{background:var(--pending-bg);color:var(--pending);border:1px solid var(--pending-line)}
@@ -467,12 +875,13 @@
   }
   .rally-card:hover .rally-actions,.rally-card.current .rally-actions{opacity:1}
   .icon-btn{
-    width:24px;height:24px;border-radius:4px;
-    background:rgba(31,29,26,.06);display:inline-flex;
+    width:26px;height:26px;border-radius:999px;
+    background:rgba(28,58,82,.06);display:inline-flex;
     align-items:center;justify-content:center;color:var(--text-2);
-    transition:all .15s ease;
+    transition:transform .2s var(--ease-bounce),background .15s ease,color .15s ease;
   }
-  .icon-btn:hover{background:rgba(31,29,26,.13);color:var(--text)}
+  .icon-btn:hover{background:rgba(28,58,82,.13);color:var(--text);transform:scale(1.12)}
+  .icon-btn:active{transform:scale(.9)}
 
   /* ============== Grid view (overlay) ============== */
   .grid-view{
@@ -497,12 +906,11 @@
     cursor:pointer;transition:all .15s ease;
     position:relative;
   }
-  .grid-card:hover{border-color:var(--line-2);transform:translateY(-1px)}
-  .grid-card.keep{border-color:var(--keep)}
-  .grid-card.drop{opacity:.55;border-color:var(--drop-line)}
+  .grid-card:hover{transform:translateY(-3px)}
+  .grid-card.keep{box-shadow:0 2px 10px rgba(28,58,82,.08), inset 0 0 0 2px var(--keep)}
+  .grid-card.drop{opacity:.55;box-shadow:0 2px 10px rgba(28,58,82,.08), inset 0 0 0 2px var(--drop-line)}
   .grid-card.current{
-    border-color:var(--accent);
-    box-shadow:0 0 0 2px rgba(31,29,26,.3);
+    box-shadow:0 6px 20px rgba(74,144,217,.26), inset 0 0 0 2.5px var(--accent);
   }
   .grid-thumb{
     width:100%;aspect-ratio:16/9;background:#000;
@@ -510,25 +918,25 @@
   }
   .grid-thumb img{width:100%;height:100%;object-fit:cover}
   .grid-thumb .play-icon{
-    position:absolute;inset:0;background:rgba(12,9,8,.3);
+    position:absolute;inset:0;background:rgba(8,20,32,.3);
     display:flex;align-items:center;justify-content:center;
     opacity:0;transition:opacity .15s ease;
   }
   .grid-card:hover .play-icon{opacity:1}
   .grid-thumb .num-tag{
     position:absolute;top:6px;left:6px;
-    background:rgba(12,9,8,.7);padding:2px 8px;border-radius:4px;
+    background:rgba(8,20,32,.7);padding:3px 10px;border-radius:999px;
     font-size:11px;font-weight:600;
     backdrop-filter:blur(4px);
   }
   .grid-thumb .status-tag{
     position:absolute;top:6px;right:6px;
-    padding:2px 6px;border-radius:4px;
+    padding:3px 9px;border-radius:999px;
     font-size:10px;font-weight:500;
   }
-  .grid-thumb .status-tag.keep{background:rgba(79,122,63,.88);color:var(--accent-ink)}
-  .grid-thumb .status-tag.drop{background:rgba(168,69,46,.88);color:var(--accent-ink)}
-  .grid-thumb .status-tag.pending{background:rgba(133,99,24,.90);color:var(--accent-ink)}
+  .grid-thumb .status-tag.keep{background:rgba(74,144,217,.88);color:var(--accent-ink)}
+  .grid-thumb .status-tag.drop{background:rgba(232,117,143,.88);color:var(--accent-ink)}
+  .grid-thumb .status-tag.pending{background:rgba(110,140,168,.90);color:var(--accent-ink)}
   .grid-meta{padding:8px 10px}
   .grid-meta-row{
     display:flex;justify-content:space-between;align-items:center;
@@ -538,14 +946,14 @@
 
   /* ============== Edit modal ============== */
   .modal-backdrop{
-    position:fixed;inset:0;background:rgba(31,29,26,.30);
+    position:fixed;inset:0;background:rgba(28,58,82,.30);
     z-index:200;display:flex;align-items:center;justify-content:center;
     padding:20px;backdrop-filter:blur(8px);
   }
   .modal{
-    background:var(--bg-1);border:1px solid var(--line);
-    border-radius:10px;width:100%;max-width:540px;
-    box-shadow:var(--shadow);overflow:hidden;
+    background:var(--bg-1);border:1px solid transparent;
+    border-radius:var(--radius-lg);width:100%;max-width:540px;
+    box-shadow:0 24px 60px rgba(28,58,82,.22);overflow:hidden;
   }
   .modal-header{
     padding:12px 16px;border-bottom:1px solid var(--line);
@@ -558,7 +966,7 @@
     display:flex;justify-content:flex-end;gap:8px;
   }
   .clip-edit-video{
-    width:100%;aspect-ratio:16/9;background:#000;border-radius:6px;
+    width:100%;aspect-ratio:16/9;background:#000;border-radius:10px;
     margin-bottom:14px;
   }
   .clip-edit-row{
@@ -598,10 +1006,10 @@
     display:flex;gap:12px;pointer-events:none;
   }
   .preview-info .info-chip{
-    background:rgba(12,9,8,.7);padding:6px 12px;border-radius:6px;
+    background:rgba(8,20,32,.7);padding:6px 12px;border-radius:10px;
     font-size:12px;font-variant-numeric:tabular-nums;
     backdrop-filter:blur(8px);
-    border:1px solid rgba(242,236,228,.1);
+    border:1px solid rgba(216,231,245,.1);
   }
   .preview-controls{
     padding:14px 20px;background:var(--bg-1);
@@ -620,26 +1028,27 @@
     pointer-events:none;
   }
   .toast{
-    background:var(--bg-3);border:1px solid var(--line-2);
-    padding:10px 16px;border-radius:8px;font-size:13px;
-    box-shadow:var(--shadow);
-    animation:toast-in .2s ease;
+    background:var(--bg-1);border:1px solid transparent;
+    padding:10px 18px;border-radius:999px;font-size:13px;
+    box-shadow:0 10px 28px rgba(28,58,82,.20);
+    animation:toast-pop .34s var(--ease-bounce);
   }
-  @keyframes toast-in{
-    from{opacity:0;transform:translateY(8px)}
-    to{opacity:1;transform:translateY(0)}
+  @keyframes toast-pop{
+    from{opacity:0;transform:translateY(16px) scale(.9)}
+    60%{transform:translateY(-4px) scale(1.02)}
+    to{opacity:1;transform:translateY(0) scale(1)}
   }
-  .toast.keep{border-color:var(--keep-line);color:#A8BE8E}
-  .toast.drop{border-color:var(--drop-line);color:#DD917A}
+  .toast.keep{border-color:var(--keep-line);color:var(--keep)}
+  .toast.drop{border-color:var(--drop-line);color:var(--drop)}
 
   /* ============== Help overlay ============== */
   /* 快捷键面板：从右上角「快捷键」按钮下方弹出，
      定位要贴着按钮，否则点了感觉「没反应」 */
   .help-overlay{
     position:fixed;top:52px;right:14px;
-    background:var(--bg-1);border:1px solid var(--line);
+    background:var(--bg-1);border:1px solid transparent;
     border-radius:var(--radius);padding:12px 14px;
-    font-size:12px;box-shadow:var(--shadow);
+    font-size:12px;box-shadow:0 14px 38px rgba(28,58,82,.20);
     width:250px;z-index:60;
   }
   .help-overlay h4{font-size:12px;margin-bottom:8px;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px}
@@ -654,6 +1063,8 @@
   .seg-group{
     display:grid;grid-template-columns:repeat(3,1fr);gap:6px;
   }
+  /* 只有两项的分段控件按两项排，否则第三格空着，按钮被挤窄 */
+  .seg-group.two{grid-template-columns:repeat(2,1fr)}
   .seg{
     padding:8px 6px;border-radius:var(--radius-sm);
     background:var(--bg-2);border:1px solid var(--line);
@@ -663,14 +1074,12 @@
   }
   .seg:hover{border-color:var(--line-2);background:var(--bg-3)}
   .seg.active{
-    background:rgba(31,29,26,.12);border-color:var(--accent);color:var(--text);
+    background:rgba(28,58,82,.12);border-color:var(--accent);color:var(--text);
   }
-  .seg .seg-sub{font-size:11px;color:var(--text-3)}
-  .seg.active .seg-sub{color:var(--accent)}
 
   .sensitivity-wrap{display:flex;align-items:center;gap:12px}
   .sensitivity-wrap input[type="range"]{
-    flex:1;accent-color:var(--accent);background:transparent;border:none;padding:0;
+    flex:1;accent-color:var(--accent);background:transparent;padding:0;
   }
   .sens-val{
     font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;
@@ -683,30 +1092,33 @@
   }
   .reanalyze-group .label{font-size:12px;color:var(--text-3)}
   .reanalyze-group input[type="range"]{
-    width:80px;accent-color:var(--accent);background:transparent;border:none;padding:0;
+    width:80px;accent-color:var(--accent);background:transparent;padding:0;
   }
   .reanalyze-group .sens-val{font-size:12px;min-width:36px}
 
   .mini-seg{
-    display:inline-flex;border:1px solid var(--line);border-radius:5px;overflow:hidden;
+    display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;
   }
   .mini-seg .mini{
-    padding:3px 9px;font-size:11px;color:var(--text-2);background:var(--bg-2);
-    border-right:1px solid var(--line);transition:all .15s ease;
+    padding:4px 11px;font-size:11px;color:var(--text-2);background:var(--bg-2);
+    transition:background .15s ease,color .15s ease;
   }
-  .mini-seg .mini:last-child{border-right:none}
   .mini-seg .mini:hover{background:var(--bg-3)}
-  .mini-seg .mini.active{background:var(--accent);color:var(--accent-ink);font-weight:600}
+  /* 选中态做成渐变胶囊而不是纯色块，和别的选中控件保持同一语汇 */
+  .mini-seg .mini.active{
+    background:linear-gradient(180deg,var(--accent),var(--accent-3));
+    color:var(--accent-ink);font-weight:600;
+  }
 
   /* ============== Motion strength bar ============== */
   .motion-wrap{
     display:flex;align-items:center;gap:6px;margin-top:3px;
   }
   .motion-track{
-    flex:1;height:3px;border-radius:2px;background:var(--bg-3);overflow:hidden;
+    flex:1;height:3px;border-radius:10px;background:var(--bg-3);overflow:hidden;
   }
   .motion-fill{
-    height:100%;border-radius:2px;background:var(--accent-2);
+    height:100%;border-radius:10px;background:var(--accent-2);
     transition:width .2s ease;
   }
   .motion-label{
@@ -716,14 +1128,15 @@
 
   /* ============== Analysis curve ============== */
   .analysis-curve{
-    margin-top:8px;background:var(--bg-2);border:1px solid var(--line);
-    border-radius:var(--radius-sm);padding:8px 10px;
+    margin-top:8px;background:var(--bg-2);border:1px solid transparent;
+    border-radius:var(--radius);padding:10px 12px;
+    box-shadow:0 2px 10px rgba(28,58,82,.055);
   }
   .analysis-curve h4{
     font-size:10px;color:var(--text-3);text-transform:uppercase;
     letter-spacing:.5px;margin-bottom:6px;
   }
-  .analysis-curve canvas{width:100%;height:56px;display:block;border-radius:4px}
+  .analysis-curve canvas{width:100%;height:56px;display:block;border-radius:7px}
 
   /* ============== 最近项目 ============== */
   .recent-projects{width:100%;max-width:680px;margin-top:28px}
@@ -739,11 +1152,19 @@
     background:var(--bg-1);border:1px solid var(--line);
     cursor:pointer;transition:all .15s ease;
   }
-  .project-item:hover{border-color:var(--line-2);background:var(--bg-2)}
+  .project-item:hover{border-color:var(--line-2);background:var(--bg-2);transform:translateY(-1px)}
   .project-thumb{
-    width:60px;height:38px;border-radius:4px;
+    width:60px;height:38px;border-radius:12px;
     background:#000;object-fit:cover;flex-shrink:0;
+    box-shadow:0 2px 8px rgba(28,58,82,.16);
   }
+  /* 项目卡前的小球：用这条记录自己的球种，一眼区分网球 / 羽毛球 / 篮球 */
+  .project-ball{
+    width:26px;height:26px;flex-shrink:0;line-height:0;
+    filter:drop-shadow(0 2px 5px rgba(28,58,82,.20));
+    transition:transform .2s var(--ease-bounce);
+  }
+  .project-item:hover .project-ball{transform:rotate(-12deg) scale(1.1)}
   .project-meta{flex:1;min-width:0}
   .project-name{
     font-size:13px;font-weight:500;
@@ -751,7 +1172,7 @@
   }
   .project-sub{font-size:11px;color:var(--text-3);margin-top:2px}
   .project-del{
-    width:26px;height:26px;border-radius:4px;flex-shrink:0;
+    width:26px;height:26px;border-radius:7px;flex-shrink:0;
     display:inline-flex;align-items:center;justify-content:center;
     color:var(--text-3);transition:all .15s ease;
   }
@@ -778,15 +1199,15 @@
   }
   .export-option-title{font-size:13px;font-weight:600}
   .export-badge{
-    font-size:10px;padding:1px 6px;border-radius:4px;
-    background:var(--bg-3);color:var(--text-2);border:1px solid var(--line);
+    font-size:10px;padding:2px 9px;border-radius:999px;
+    background:var(--bg-3);color:var(--text-2);border:1px solid transparent;
   }
   .export-badge.quick{background:var(--keep-bg);color:var(--keep);border-color:var(--keep-line)}
-  .export-badge.accurate{background:rgba(107,101,92,.12);color:#E0B87C;border-color:rgba(107,101,92,.35)}
+  .export-badge.accurate{background:rgba(139,166,192,.12);color:#8BACC7;border-color:rgba(139,166,192,.35)}
   .export-option-desc{font-size:12px;color:var(--text-2);line-height:1.6}
   .export-option-desc code{
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-    font-size:11px;background:var(--bg);padding:1px 5px;border-radius:3px;
+    font-size:11px;background:var(--bg);padding:1px 5px;border-radius:10px;
     border:1px solid var(--line);color:var(--text);
   }
 
@@ -808,7 +1229,7 @@
 
   /* Preview while exporting */
   .export-overlay{
-    position:absolute;inset:0;background:rgba(12,9,8,.85);
+    position:absolute;inset:0;background:rgba(8,20,32,.85);
     display:flex;flex-direction:column;align-items:center;justify-content:center;
     gap:14px;z-index:10;color:#FFFFFF;
   }
@@ -827,13 +1248,88 @@
   /* Score badge */
   .score-chip{
     display:inline-flex;align-items:center;gap:4px;
-    padding:2px 6px;border-radius:4px;
+    padding:2px 9px;border-radius:999px;
     background:var(--bg-3);font-size:11px;
     font-variant-numeric:tabular-nums;color:var(--text-2);
   }
   .score-chip .arrow{color:var(--text-3);font-size:10px}
   .score-chip .delta{color:var(--keep);font-size:10px;font-weight:600}
 
+
+  /* ============== 去线框 + 统一动效语汇 ==============
+     原来每个控件都靠 1px 实线描边划边界，整页看起来很"硬"。
+     这里统一：不描边（层次交给落影与底色）+ 胶囊外形 + 抬起/按下两段动效。
+     小控件（分段按钮 / 时长 / 筛选）用胶囊，大容器用大圆角，避免一律方框。 */
+  .seg,.target-btn,.filter-chip{
+    border-color:transparent;border-radius:999px;
+    box-shadow:0 2px 10px rgba(28,58,82,.065), inset 0 1px 0 rgba(255,255,255,.7);
+    transition:transform .2s var(--ease-bounce),box-shadow .2s ease,background .2s ease,color .2s ease;
+  }
+  .mini-seg,.pill,.reanalyze-group{
+    border-color:transparent;border-radius:999px;
+    box-shadow:0 2px 10px rgba(28,58,82,.055);
+  }
+  .rally-card,.grid-card,.project-item,.export-option,.stat-card{
+    border-color:transparent;
+    box-shadow:0 2px 10px rgba(28,58,82,.055);
+  }
+  /* 小控件 hover 用「跳一下」，大卡片用「浮起来」 */
+  .seg:hover,.target-btn:hover,.filter-chip:hover{
+    transform:translateY(-2px) scale(1.03);
+    box-shadow:0 9px 22px rgba(28,58,82,.14), inset 0 1px 0 rgba(255,255,255,.85);
+  }
+  .seg:active,.target-btn:active,.filter-chip:active{transform:translateY(0) scale(.95)}
+  .rally-card:hover,.grid-card:hover,.project-item:hover,.export-option:hover{
+    transform:translateY(-2px);
+    box-shadow:var(--shadow-lift);
+  }
+  /* 选中态：不用描边，用蓝调渐变底 + 一圈 inset 高亮，视觉上更"鼓"起来 */
+  .seg.active,.mini-seg.active,.target-btn.active,.filter-chip.active{
+    background:linear-gradient(180deg,rgba(74,144,217,.18),rgba(74,144,217,.07));
+    box-shadow:0 6px 18px rgba(74,144,217,.24), inset 0 0 0 1.6px var(--accent);
+    color:var(--text);font-weight:600;
+  }
+
+  /* ============== 弹出层的入场动效 ==============
+     弹窗 / 面板 / 提示都用同一条弹入曲线，出现时是"弹"出来的而不是硬闪。 */
+  @keyframes pop-in{from{opacity:0;transform:scale(.93) translateY(10px)}to{opacity:1;transform:none}}
+  @keyframes fade-in{from{opacity:0}to{opacity:1}}
+  .modal{animation:pop-in .24s var(--ease-bounce)}
+  .modal-backdrop{animation:fade-in .18s ease}
+  .help-overlay{animation:pop-in .22s var(--ease-bounce)}
+  .grid-view{animation:fade-in .16s ease}
+
+  /* 尊重系统「减少动态效果」设置：关掉位移与循环动画 */
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.01ms !important;animation-iteration-count:1 !important;
+      transition-duration:.01ms !important}
+  }
+  /* 上传图标是双类选择器（.upload-icon.ball-shape），特异性高于 .ball-shape，
+     会把渐变底色盖回来 —— 必须显式提权清掉，否则球上会叠一层渐变色块。 */
+  .upload-icon.ball-shape{background:none;box-shadow:none}
+
+  /* ============== 首屏中文：思源宋体 + logo 同款蓝墨渐变 ==============
+     放在样式表末尾：这些元素在 Upload / 最近项目 段里各自写过 color，
+     同特异性下必须靠"靠后出现"才能压住（background-clip:text 要求 color 透明，
+     否则文字会以实心色盖住渐变背景，看起来完全没有变色）。 */
+  .upload-drop h2,.upload-drop p,.upload-divider,.sport-opt .label,
+  .upload-page .form-group label,.recent-head h3,.project-name{
+    font-family:var(--font-serif);
+    background:var(--grad-ink);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .upload-drop h2{letter-spacing:1px}
+  .upload-divider{letter-spacing:2px}
+  /* 选中球种：换更亮的一档渐变，跟"被选中"的状态对上 */
+  .sport-opt.selected .label{
+    background:linear-gradient(100deg,#2E6FB0,#7FB6E8 72%,#A5CFEE);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  /* 次要说明文字：同一支宋体，浅一档渐变，不抢主标题 */
+  .project-sub,.foot-note{
+    background:linear-gradient(100deg,#4C6C8A,#7FB6E8 78%,#A5CFEE);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
 </style>
 </head>
 <body>
@@ -841,8 +1337,7 @@
   <!-- Topbar -->
   <header class="topbar">
     <div class="logo">
-      <div class="logo-mark">R</div>
-      <span>RoundCut</span>
+      <span class="logo-script">RoundCut</span>
     </div>
     <span class="pill" id="sport-pill" style="display:none">
       <span class="dot"></span>
@@ -855,52 +1350,38 @@
     <div class="spacer"></div>
     <span class="save-status" id="save-status" style="display:none"></span>
     <button class="btn btn-ghost" id="btn-restart" style="display:none">重新开始</button>
-    <button class="btn btn-ghost" id="btn-help" title="查看快捷键">⌘ 快捷键</button>
+    <button class="btn btn-ghost script-btn tip-right" id="btn-help"
+            data-tip="查看快捷键 · 也可以按 ? 键"><span class="cmd">⌘</span>shortcuts</button>
   </header>
 
   <!-- Upload Page -->
   <main class="upload-page" id="upload-page">
-    <div class="upload-hero">
-      <h1>把一场比赛，拆成可挑选的回合</h1>
-      <p>上传完整赛事视频，自动识别每个回合起止。快速浏览 → 保留精彩 → 一键导出 1–2 分钟集锦。</p>
-    </div>
-
     <div class="upload-card" id="upload-card">
       <div class="upload-drop" id="upload-drop">
-        <div class="upload-icon">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="17 8 12 3 7 8"></polyline>
-            <line x1="12" y1="3" x2="12" y2="15"></line>
-          </svg>
-        </div>
+        <div class="upload-scene" id="upload-scene" aria-hidden="true"></div>
         <h2>上传比赛视频</h2>
-        <p>支持 MP4 / MOV / AVI / MKV · 拖拽到此或点击选择</p>
+        <p>拖进来，或点一下</p>
         <input type="file" id="file-input" accept="video/*" style="display:none" />
       </div>
 
-      <div class="upload-divider">运动类型</div>
+      <div class="upload-divider">选个球</div>
 
       <div class="sport-options" id="sport-options">
-        <div class="sport-opt" data-sport="tennis">
-          <div class="icon"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></div>
+        <div class="sport-opt" data-sport="tennis" data-tip="网球 · 单回合通常 8–25 秒，回合间常有发球准备">
+          <div class="icon ball-shape" data-ball data-ball-static="1"><svg viewBox="0 0 40 40" width="100%" height="100%"><circle cx="20" cy="20" r="17.6" fill="#D3DE52"/><ellipse cx="14.2" cy="13" rx="8.6" ry="6.4" fill="#FFFFFF" opacity=".40"/><path d="M6.4 10.6C11.6 15.4 11.6 24.6 6.4 29.4" fill="none" stroke="#FFFFFF" stroke-width="2.3" stroke-linecap="round"/><path d="M33.6 10.6C28.4 15.4 28.4 24.6 33.6 29.4" fill="none" stroke="#FFFFFF" stroke-width="2.3" stroke-linecap="round"/></svg></div>
           <div class="label">网球</div>
-          <div class="hint">约 8–25s/回合</div>
         </div>
-        <div class="sport-opt" data-sport="badminton">
-          <div class="icon"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2l3 6 6 .5-4.5 4 1.5 6.5-6-3.5L6 19l1.5-6.5L3 8.5 9 8z"/></svg></div>
+        <div class="sport-opt" data-sport="badminton" data-tip="羽毛球 · 单回合通常 5–20 秒，击球声清脆密集">
+          <div class="icon ball-shape" data-ball data-ball-static="1"><svg viewBox="0 0 40 40" width="100%" height="100%"><path d="M13.6 21.4L8.4 7.6C15.6 4.6 24.4 4.6 31.6 7.6L26.4 21.4Z" fill="#FBFDFF" stroke="#C7D9EA" stroke-width="1.1" stroke-linejoin="round"/><path d="M20 20.6L14.6 7.2M20 20.6L25.4 7.2M20 20.6V5.6" stroke="#D6E5F2" stroke-width="1.05" stroke-linecap="round"/><path d="M13.6 21.4A6.4 6.4 0 0 0 26.4 21.4Z" fill="#FFFFFF" stroke="#C7D9EA" stroke-width="1.2" stroke-linejoin="round"/></svg></div>
           <div class="label">羽毛球</div>
-          <div class="hint">约 5–20s/回合</div>
         </div>
-        <div class="sport-opt" data-sport="tabletennis">
-          <div class="icon"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><path d="M2 12h20"/></svg></div>
+        <div class="sport-opt" data-sport="tabletennis" data-tip="乒乓球 · 单回合通常 3–15 秒，节奏最快">
+          <div class="icon ball-shape" data-ball data-ball-static="1"><svg viewBox="0 0 40 40" width="100%" height="100%"><circle cx="20" cy="20" r="16.8" fill="#F5A05A"/><ellipse cx="14.4" cy="13.4" rx="8" ry="5.8" fill="#FFFFFF" opacity=".42"/><path d="M5.4 15.6C12 20.4 28 20.4 34.6 15.6" fill="none" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round" opacity=".9"/></svg></div>
           <div class="label">乒乓球</div>
-          <div class="hint">约 3–15s/回合</div>
         </div>
-        <div class="sport-opt" data-sport="other">
-          <div class="icon"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M9 9h.01M15 9h.01M8 15c1 1 2.5 1.5 4 1.5s3-.5 4-1.5"/></svg></div>
+        <div class="sport-opt" data-sport="other" data-tip="其他运动 · 不套用项目预设，参数完全手动">
+          <div class="icon ball-shape" data-ball data-ball-static="1"><svg viewBox="0 0 40 40" width="100%" height="100%"><circle cx="20" cy="20" r="17.2" fill="#FDFEFF" stroke="#A9C3DC" stroke-width="1.8"/><ellipse cx="14" cy="12.6" rx="7.5" ry="5.4" fill="#E8F1FA" opacity=".85"/><path d="M20 13.2L26.5 17.9L24 25.5L16 25.5L13.5 17.9Z" fill="#22303E"/><path d="M20 13.2V4.6M26.5 17.9L34.6 15.4M24 25.5L29 32.4M16 25.5L11 32.4M13.5 17.9L5.4 15.4" stroke="#22303E" stroke-width="1.7"/><circle cx="28.4" cy="8.5" r="3" fill="#22303E"/><circle cx="33.5" cy="24.4" r="3" fill="#22303E"/><circle cx="20" cy="34.2" r="3" fill="#22303E"/><circle cx="6.5" cy="24.4" r="3" fill="#22303E"/><circle cx="11.7" cy="8.5" r="3" fill="#22303E"/></svg></div>
           <div class="label">其他</div>
-          <div class="hint">手动切分</div>
         </div>
       </div>
 
@@ -916,50 +1397,35 @@
       </div>
 
       <div class="form-group" style="margin-bottom:16px">
-        <label>素材类型 <span style="color:var(--text-3)">— 决定用哪种信号找边界</span></label>
-        <div class="seg-group" id="content-group">
-          <button class="seg active" data-content="compilation">
-            剪辑合集<span class="seg-sub">片段硬切拼接</span>
-          </button>
-          <button class="seg" data-content="match">
-            完整比赛<span class="seg-sub">回合间有安静期</span>
-          </button>
+        <label>素材类型<span class="tip-q" data-tip="决定用哪种信号找边界：合集看硬切，比赛看安静期">?</span></label>
+        <div class="seg-group two" id="content-group">
+          <button class="seg active" data-content="compilation" data-tip="别人把片段一个个拼起来的长视频。片段之间通常没有安静期，只有画面与声音的突变，重点检测硬切点">剪辑合集</button>
+          <button class="seg" data-content="match" data-tip="一整场未经剪辑的录像。回合之间有明显安静期，用声音能量塌陷找边界">完整比赛</button>
         </div>
-        <div class="hint" id="content-hint" style="margin-top:6px;font-size:11px;color:var(--text-3);line-height:1.5">
-          合集是别人把片段一个个拼起来的：片段之间通常没有安静期，只有画面和声音的突变。会重点检测硬切点。
-        </div>
+        
       </div>
 
       <div class="form-group" style="margin-bottom:16px">
         <label>切分依据</label>
         <div class="seg-group" id="source-group">
-          <button class="seg active" data-source="fused">
-            声音+画面<span class="seg-sub">推荐 · 多模态</span>
-          </button>
-          <button class="seg" data-source="audio">
-            仅声音<span class="seg-sub">不抽帧，快</span>
-          </button>
-          <button class="seg" data-source="video">
-            仅画面<span class="seg-sub">无声视频用</span>
-          </button>
+          <button class="seg active" data-source="fused" data-tip="画面与声音两条信号融合，最准。相邻回合之间画面整屏切换、音频同时不连续，两条都抓">声音+画面</button>
+          <button class="seg" data-source="audio" data-tip="只分析声音，不抽帧，速度最快。导播切镜头也会被当作切点">仅声音</button>
+          <button class="seg" data-source="video" data-tip="只看画面变化，适合没有音轨的视频">仅画面</button>
         </div>
-        <div class="hint" id="source-hint" style="margin-top:6px;font-size:11px;color:var(--text-3);line-height:1.5">
-          集锦里相邻回合之间本来就是剪辑点：画面会整屏切换，同时音频突然不连续（上一段解说 → 硬切 → 下一段解说）。两条信号融合判断，不依赖静音。
-          注意：导播在同一回合内也会切镜头（全场 → 球员特写 / 慢动作回放），那是段落内部的镜头语言，不会被当成边界——靠「切点之后有没有击球声」区分。
-        </div>
+        
       </div>
 
       <div class="form-group" style="margin-bottom:16px" id="quality-wrap">
-        <label>画面分析精度 <span style="color:var(--text-3)">— 按 25fps 整数分频采样，越高越准也越慢</span></label>
+        <label>画面分析精度<span class="tip-q" data-tip="按 25fps 整数分频采样，采样点在时间轴上严格均匀。越高越准，也越慢">?</span></label>
         <div class="seg-group" id="quality-group">
-          <button class="seg" data-quality="fast">快速 <span class="seg-sub">每5帧 · 5fps</span></button>
-          <button class="seg active" data-quality="standard">标准 <span class="seg-sub">每2帧 · 12.5fps</span></button>
-          <button class="seg" data-quality="fine">精细 <span class="seg-sub">每帧 · 25fps</span></button>
+          <button class="seg" data-quality="fast" data-tip="每 5 帧取一帧（5fps）：最快，边界精度较低">快速</button>
+          <button class="seg active" data-quality="standard" data-tip="每 2 帧取一帧（12.5fps）：速度与精度的平衡">标准</button>
+          <button class="seg" data-quality="fine" data-tip="每帧都分析（25fps）：最准，耗时最长">精细</button>
         </div>
       </div>
 
       <div class="form-group" style="margin-bottom:16px">
-        <label>切分灵敏度 <span style="color:var(--text-3)">— 越高切得越细（回合更多）</span></label>
+        <label>切分灵敏度<span class="tip-q" data-tip="越高切得越细，回合数越多。切多了调低，漏切了调高">?</span></label>
         <div class="sensitivity-wrap">
           <input type="range" id="sensitivity" min="0.5" max="2" step="0.1" value="0.8" />
           <span class="sens-val" id="sensitivity-val">0.8×</span>
@@ -967,7 +1433,7 @@
       </div>
 
       <div class="form-group" style="margin-bottom:16px">
-        <label>画面 / 声音权重 <span style="color:var(--text-3)">— CutScore = 画面×画面变化 + 声音×音频不连续（按比例归一化）</span></label>
+        <label>画面 / 声音权重<span class="tip-q" data-tip="CutScore = 画面分×画面权重 + 声音分×声音权重（按比例归一化）。两者不必同时达阈值">?</span></label>
         <div class="sensitivity-wrap">
           <span style="font-size:11px;color:var(--text-3)">画面</span>
           <input type="range" id="visual-weight" min="0" max="1" step="0.05" value="0.6" />
@@ -979,7 +1445,7 @@
       </div>
 
       <div class="form-group" style="margin-bottom:16px">
-        <label>最短回合时长 <span style="color:var(--text-3)">— 秒。更短的段会被合并，用于过滤镜头运动 / 闪光 / 欢呼 / 慢动作造成的误切</span></label>
+        <label>最短回合时长<span class="tip-q" data-tip="秒。更短的段会被合并，用来过滤镜头运动 / 闪光 / 欢呼 / 慢动作造成的误切">?</span></label>
         <div class="sensitivity-wrap">
           <input type="range" id="min-seg" min="1" max="8" step="0.5" value="2.5" />
           <span class="sens-val" id="min-seg-val">2.5s</span>
@@ -987,7 +1453,7 @@
       </div>
 
       <div class="form-group" style="margin-bottom:16px">
-        <label>切点聚类窗口 <span style="color:var(--text-3)">— 秒。同一剪辑点附近连续多帧高分，只取最高分算一个切点</span></label>
+        <label>切点聚类窗口<span class="tip-q" data-tip="秒。同一剪辑点附近连续多帧都会高分，窗口内只取最高分算一个切点">?</span></label>
         <div class="sensitivity-wrap">
           <input type="range" id="cluster-win" min="0.2" max="1.5" step="0.1" value="0.5" />
           <span class="sens-val" id="cluster-win-val">0.5s</span>
@@ -995,7 +1461,7 @@
       </div>
 
       <div class="form-group" style="margin-bottom:16px">
-        <label>击球判定阈值 <span style="color:var(--text-3)">— dB。切点之后多久内出现多强的击球声才认定「新回合开始」。调低更容易切开，调高更保守</span></label>
+        <label>击球判定阈值<span class="tip-q" data-tip="dB。切点后出现多强的击球声才认定「新回合开始」。调低更容易切开，调高更保守">?</span></label>
         <div class="sensitivity-wrap">
           <input type="range" id="hit-db" min="3" max="18" step="0.5" value="8" />
           <span class="sens-val" id="hit-db-val">8dB</span>
@@ -1003,7 +1469,7 @@
       </div>
 
       <div class="form-group" style="margin-bottom:16px">
-        <label>击球观察窗口 <span style="color:var(--text-3)">— 秒。切点后最多往后看多久找第一拍。发球准备长的项目（网球抛球）需调大</span></label>
+        <label>击球观察窗口<span class="tip-q" data-tip="秒。切点后最多往后看多久找第一拍。发球准备长的项目（如网球抛球）要调大">?</span></label>
         <div class="sensitivity-wrap">
           <input type="range" id="hit-win" min="2" max="8" step="0.5" value="5" />
           <span class="sens-val" id="hit-win-val">5.0s</span>
@@ -1023,14 +1489,14 @@
       <div class="project-list" id="project-list"></div>
     </div>
 
-    <div style="margin-top:24px;color:var(--text-3);font-size:12px">
+    <div class="foot-note" style="margin-top:24px;font-size:12px">
       视频仅在本地浏览器处理，不会上传服务器。分析结果保存在本机浏览器里。
     </div>
   </main>
 
   <!-- Processing Page -->
   <main class="processing-page hidden" id="processing-page">
-    <div class="processing-spinner"></div>
+    <div class="ball-loader"><i data-ball></i><i data-ball></i><i data-ball></i></div>
     <h2 id="proc-title">正在分析比赛</h2>
     <p id="proc-desc">识别回合边界中…</p>
     <div class="processing-bar"><div class="processing-bar-fill" id="proc-bar"></div></div>
@@ -1132,8 +1598,9 @@
             <button class="btn btn-icon" id="btn-prev" title="上一个回合 (←)">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
-            <button class="btn btn-icon" id="btn-play" title="播放/暂停 (Space)">
-              <svg id="play-icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <button class="ball ball-btn" id="btn-play" data-ball data-tip="播放 / 暂停（Space）">
+              <span class="ball-art"></span>
+              <span class="ball-badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 21 12 6 21"/></svg></span>
             </button>
             <button class="btn btn-icon" id="btn-next" title="下一个回合 (→)">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
@@ -1147,12 +1614,12 @@
               <option value="1.5">1.5×</option>
               <option value="2">2.0×</option>
             </select>
-            <button class="btn btn-sm btn-keep" id="btn-keep" title="保留 (Enter / 1)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            <button class="btn btn-sm btn-keep pill-btn" id="btn-keep" title="保留 (Enter / 1)">
+              <span class="ball ball-dot" data-ball></span>
               保留
             </button>
-            <button class="btn btn-sm btn-danger" id="btn-drop" title="删除 (Delete / 2)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14H7L5 6"/></svg>
+            <button class="btn btn-sm btn-danger pill-btn" id="btn-drop" title="删除 (Delete / 2)">
+              <span class="ball ball-dot ball-pink" data-ball></span>
               删除
             </button>
             <button class="btn btn-sm" id="btn-edit" title="调整起止">
@@ -1215,7 +1682,7 @@
 <!-- Grid View -->
 <div class="grid-view hidden" id="grid-view">
   <div class="grid-view-header">
-    <div class="logo"><div class="logo-mark">R</div><span>RoundCut</span></div>
+    <div class="logo"><span class="logo-script">RoundCut</span></div>
     <span class="pill"><span class="dot"></span><span id="grid-count-label">0 回合</span></span>
     <div class="spacer" style="flex:1"></div>
     <button class="btn btn-sm" id="btn-grid-close">关闭网格</button>
@@ -1293,6 +1760,124 @@ const SPORT_LABEL = {
   tabletennis:'乒乓球',
   other:'其他 / 手动'
 };
+
+/* ============== 球种图形 ==============
+   每种运动画自己真正的球，而不是统一一个圆 —— 网球有黄绿渐变与两道白缝线，
+   羽毛球是杯状羽毛裙 + 白色球头，乒乓球是橙色球体 + 一道接缝。
+   全部用无 id 的纯路径（渐变靠叠加半透明高光椭圆模拟），
+   因此可以无限复用而不会因重复 id 互相干扰。 */
+const BALL_SVG = {
+  tennis:
+    '<svg viewBox="0 0 40 40" width="100%" height="100%" aria-hidden="true">' +
+      '<circle cx="20" cy="20" r="17.6" fill="#D3DE52"/>' +
+      '<ellipse cx="14.2" cy="13" rx="8.6" ry="6.4" fill="#FFFFFF" opacity=".40"/>' +
+      '<path d="M6.4 10.6C11.6 15.4 11.6 24.6 6.4 29.4" fill="none" stroke="#FFFFFF" stroke-width="2.3" stroke-linecap="round"/>' +
+      '<path d="M33.6 10.6C28.4 15.4 28.4 24.6 33.6 29.4" fill="none" stroke="#FFFFFF" stroke-width="2.3" stroke-linecap="round"/>' +
+    '</svg>',
+  badminton:
+    '<svg viewBox="0 0 40 40" width="100%" height="100%" aria-hidden="true">' +
+      '<path d="M13.6 21.4L8.4 7.6C15.6 4.6 24.4 4.6 31.6 7.6L26.4 21.4Z" fill="#FBFDFF" stroke="#C7D9EA" stroke-width="1.1" stroke-linejoin="round"/>' +
+      '<path d="M20 20.6L14.6 7.2M20 20.6L25.4 7.2M20 20.6V5.6" stroke="#D6E5F2" stroke-width="1.05" stroke-linecap="round"/>' +
+      '<path d="M13.6 21.4A6.4 6.4 0 0 0 26.4 21.4Z" fill="#FFFFFF" stroke="#C7D9EA" stroke-width="1.2" stroke-linejoin="round"/>' +
+      '<ellipse cx="17.4" cy="24" rx="3.4" ry="2.2" fill="#FFFFFF" opacity=".85"/>' +
+    '</svg>',
+  tabletennis:
+    '<svg viewBox="0 0 40 40" width="100%" height="100%" aria-hidden="true">' +
+      '<circle cx="20" cy="20" r="16.8" fill="#F5A05A"/>' +
+      '<ellipse cx="14.4" cy="13.4" rx="8" ry="5.8" fill="#FFFFFF" opacity=".42"/>' +
+      '<path d="M5.4 15.6C12 20.4 28 20.4 34.6 15.6" fill="none" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round" opacity=".9"/>' +
+    '</svg>',
+  /* 足球：白底 + 深墨五边形拼块。中央五边形 + 五根辐条 + 五片贴边圆块，
+     没用 clipPath/defs（避免多处内联时 id 冲突），贴边块半径刚好让外缘碰到球廓。 */
+  football:
+    '<svg viewBox="0 0 40 40" width="100%" height="100%" aria-hidden="true">' +
+      '<circle cx="20" cy="20" r="17.2" fill="#FDFEFF" stroke="#A9C3DC" stroke-width="1.8"/>' +
+      '<ellipse cx="14" cy="12.6" rx="7.5" ry="5.4" fill="#E8F1FA" opacity=".85"/>' +
+      '<path d="M20 13.2L26.5 17.9L24 25.5L16 25.5L13.5 17.9Z" fill="#22303E"/>' +
+      '<path d="M20 13.2V4.6M26.5 17.9L34.6 15.4M24 25.5L29 32.4M16 25.5L11 32.4M13.5 17.9L5.4 15.4" stroke="#22303E" stroke-width="1.7"/>' +
+      '<circle cx="28.4" cy="8.5" r="3" fill="#22303E"/>' +
+      '<circle cx="33.5" cy="24.4" r="3" fill="#22303E"/>' +
+      '<circle cx="20" cy="34.2" r="3" fill="#22303E"/>' +
+      '<circle cx="6.5" cy="24.4" r="3" fill="#22303E"/>' +
+      '<circle cx="11.7" cy="8.5" r="3" fill="#22303E"/>' +
+    '</svg>'
+};
+
+/* 运动类型 → 球种图形的映射。「其他 / 手动」没有自己的球，
+   用足球兜底（辨识度高，场景动画也好画：两个人在中圈来回踢）。 */
+const BALL_KEY = {
+  tennis:'tennis', badminton:'badminton', tabletennis:'tabletennis', other:'football'
+};
+function ballSvg(sport){
+  return BALL_SVG[BALL_KEY[sport] || sport] || BALL_SVG.football;
+}
+
+/* ============== 上传区比赛小场景 ==============
+   选中球种后，上传框里的静态大球换成「两人对打」循环动画：
+   网球/羽毛球隔网相持，乒乓球隔台相持，足球在中圈来回传踢。
+   球员是极简小人（头/身/腿静态，持拍臂摆动），球就是真实球种的 SVG。 */
+const SCENE_CONF = {
+  tennis:     { arc:-34, prop:'net'   },
+  badminton:  { arc:-48, prop:'net'   },
+  tabletennis:{ arc:-16, prop:'table' },
+  football:   { arc:-13, prop:'field' }
+};
+
+/* 小人 SVG。viewBox 46x62，面朝右；.sc-arm 是持拍臂，CSS 绕肩(26,21.5)摆动。 */
+function scenePlayer(sport){
+  let tool = '';
+  if (sport === 'tennis')
+    tool = '<ellipse cx="37" cy="35.5" rx="5.2" ry="7.4" fill="rgba(255,255,255,.85)" stroke="#1C3A52" stroke-width="2.3"/>';
+  else if (sport === 'badminton')
+    tool = '<ellipse cx="37.2" cy="37.5" rx="3" ry="8.4" fill="rgba(255,255,255,.85)" stroke="#1C3A52" stroke-width="1.9"/>';
+  else if (sport === 'tabletennis')
+    tool = '<circle cx="36" cy="33.5" r="5.4" fill="#D95F7C" stroke="#B4455F" stroke-width="1.5"/>';
+  const otherArm = sport === 'football'
+    ? '<path d="M15 21.5L8.5 28" stroke="#1C3A52" stroke-width="4.2" stroke-linecap="round"/>' : '';
+  return '<svg viewBox="0 0 46 62" aria-hidden="true">'
+    + '<path d="M17 37.5L13 58.5M26 37.5L30 58.5" stroke="#2E5474" stroke-width="5" stroke-linecap="round"/>'
+    + '<circle cx="21.5" cy="8.5" r="6.8" fill="#1C3A52"/>'
+    + '<rect x="14" y="16" width="15" height="22.5" rx="5.5" fill="#3E6E9E"/>'
+    + otherArm
+    + '<g class="sc-arm">'
+    +   '<path d="M26 21.5L35 31.5" stroke="#1C3A52" stroke-width="4.4" stroke-linecap="round"/>'
+    +   tool
+    + '</g>'
+    + '</svg>';
+}
+
+/* 重建上传区场景。renderBalls() 会带着当前球种调用它。 */
+function renderUploadScene(sport){
+  const box = document.getElementById('upload-scene');
+  if (!box) return;
+  sport = BALL_KEY[sport] || sport;   // 「其他」没有专属场景，跟着足球走
+  const c = SCENE_CONF[sport] || SCENE_CONF.tennis;
+  const mid = c.prop === 'table'
+    ? '<div class="sc-table"></div><i class="sc-tleg l"></i><i class="sc-tleg r"></i>'
+    : (c.prop === 'field' ? '<div class="sc-center"></div>' : '<div class="sc-net"></div>');
+  box.dataset.sport = sport;
+  box.innerHTML =
+    '<div class="sc-ground"></div>' + mid +
+    '<div class="sc-player p1">' + scenePlayer(sport) + '</div>' +
+    '<div class="sc-player p2">' + scenePlayer(sport) + '</div>' +
+    '<div class="sc-shadowtrack"><div class="sc-shadow"></div></div>' +
+    '<div class="sc-balltrack"><div class="sc-ball" style="--sc-arc:' + c.arc + 'px">' + ballSvg(sport) + '</div></div>';
+}
+
+/* 把所有带 data-ball 的元素渲染成当前运动类型对应的球。
+   选择运动类型时调用，界面上的球随之整体换掉。 */
+function renderBalls(){
+  const svg = ballSvg(state.sport);
+  renderUploadScene(state.sport);   // 上传区大框同步换成该球种的对打动画
+  document.querySelectorAll('[data-ball]').forEach(el => {
+    el.classList.add('ball-shape');
+    if (el.dataset.ballStatic === '1') return;   // 各自固定球种的（如项目选择卡）不跟随
+    /* 只替换 .ball-art 这一层：球上还叠着角标（如播放键的三角），
+       直接改整个 innerHTML 会把角标一起冲掉。 */
+    const art = el.querySelector('.ball-art');
+    if (art) art.innerHTML = svg; else el.innerHTML = svg;
+  });
+}
 
 /* 分析预设：赛事录像通常 25fps，因此按 25fps 的整数分频设计采样
    （每 5 / 2 / 1 帧取一帧），采样点在时间轴上严格均匀。
@@ -1545,6 +2130,11 @@ async function restoreProject(p){
   state.projectId = p.id;
   state.projectCreatedAt = p.createdAt;
   state.sport = p.sport || 'tennis';
+  // 同步项目选择卡的高亮与界面上的球种
+  document.querySelectorAll('.sport-opt').forEach(o => {
+    o.classList.toggle('selected', o.dataset.sport === state.sport);
+  });
+  renderBalls();
   state.contentType = p.contentType || 'compilation';
   state.analysisSource = p.analysisSource || 'fused';
   state.analysisQuality = p.analysisQuality || 'standard';
@@ -1704,9 +2294,11 @@ async function renderProjectList(){
     item.innerHTML = `
       ${cover ? `<img class="project-thumb" src="${cover}">`
               : `<div class="project-thumb"></div>`}
+      <div class="project-ball" title="${SPORT_LABEL[p.sport] || '其他'}">${ballSvg(p.sport)}</div>
       <div class="project-meta">
         <div class="project-name">${escapeHtml(p.name || '未命名')}</div>
         <div class="project-sub">
+          ${SPORT_LABEL[p.sport] ? SPORT_LABEL[p.sport] + ' · ' : ''}
           ${p.stats ? `${p.stats.total} 个回合 · 已保留 ${p.stats.keep} 个 · ${fmtDuration(p.stats.selected || 0)}` : '无回合数据'}
           · ${timeAgo(p.updatedAt)}
           ${p.fileHandle ? '' : ' · 需重新选文件'}
@@ -1780,6 +2372,7 @@ function setupUpload(){
       $$('.sport-opt').forEach(o => o.classList.remove('selected'));
       opt.classList.add('selected');
       state.sport = opt.dataset.sport;
+      renderBalls();          // 界面上所有球随之换成该项目的球
     });
   });
   // default select tennis
@@ -1798,12 +2391,14 @@ function setupUpload(){
     compilation: '合集是别人把片段一个个拼起来的：片段之间通常没有安静期，只有画面整屏切换和声音电平突变。会重点检测硬切点。',
     match: '完整比赛里，回合之间有准备发球、擦汗的安静期。会用安静期定位边界，并把起点对齐到发球。'
   };
+  /* 说明不再平铺在下方，改为挂到按钮的 data-tip 上（悬停才显示）。
+     初始化时统一写一次，之后不必在点击时重复赋值。 */
   $$('#content-group .seg').forEach(b => {
+    if (CONTENT_HINT[b.dataset.content]) b.dataset.tip = CONTENT_HINT[b.dataset.content];
     b.addEventListener('click', () => {
       $$('#content-group .seg').forEach(x => x.classList.remove('active'));
       b.classList.add('active');
       state.contentType = b.dataset.content;
-      $('#content-hint').textContent = CONTENT_HINT[b.dataset.content] || '';
     });
   });
 
@@ -1814,11 +2409,11 @@ function setupUpload(){
     video: '仅在没有音轨、或音频极嘈杂时用。纯看画面突变，注意慢动作回放和观众席镜头会造成误切。'
   };
   $$('#source-group .seg').forEach(b => {
+    if (SRC_HINT[b.dataset.source]) b.dataset.tip = SRC_HINT[b.dataset.source];
     b.addEventListener('click', () => {
       $$('#source-group .seg').forEach(x => x.classList.remove('active'));
       b.classList.add('active');
       state.analysisSource = b.dataset.source;
-      $('#source-hint').textContent = SRC_HINT[b.dataset.source] || '';
       // 纯声音模式不需要逐帧抽画面，隐藏精度选项
       $('#quality-wrap').style.display = b.dataset.source === 'audio' ? 'none' : '';
     });
@@ -1883,8 +2478,8 @@ function setupUpload(){
       Object.entries(ANALYSIS_PRESETS).forEach(([key, p]) => {
         const n = Math.max(60, Math.min(p.maxFrames, Math.round(dur * p.fps)));
         const secs = Math.round(n * perFrame);
-        const el = document.querySelector(`.seg[data-quality="${key}"] .seg-sub`);
-        if (el) el.textContent = `${p.fps}fps · 约${secs >= 60 ? Math.round(secs/60)+'分' : secs+'秒'}`;
+        const el = document.querySelector(`.seg[data-quality="${key}"]`);
+        if (el) el.dataset.tip = `每${p.every}帧取一帧（${p.fps}fps）· 预计耗时约${secs >= 60 ? Math.round(secs/60)+'分' : secs+'秒'}`;
       });
     };
   }
@@ -3763,7 +4358,7 @@ function renderRallyList(){
     card.className = 'rally-card ' + r.status + (realIndex === state.currentIndex ? ' current' : '');
     card.innerHTML = `
       <div class="rally-thumb">
-        ${r.thumbnail ? `<img src="${r.thumbnail}">` : '<div style="width:100%;height:100%;background:#EFEBE4"></div>'}
+        ${r.thumbnail ? `<img src="${r.thumbnail}">` : '<div style="width:100%;height:100%;background:#E9F2FA"></div>'}
         <div class="play-overlay">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="#FFFFFF"><polygon points="6 4 20 12 6 20 6 4"/></svg>
         </div>
@@ -3888,7 +4483,7 @@ function renderAnalysisCurve(){
     const yOf = v => h - Math.min(1, Math.max(0, (v - lo) / (hi - lo))) * (h - 4) - 2;
 
     // 安静间隙（判定为回合间隙的区域）用淡色块标出
-    ctx.fillStyle = 'rgba(79,122,63,.18)';
+    ctx.fillStyle = 'rgba(74,144,217,.18)';
     gaps.forEach(g => {
       const x0 = (g.start / dur) * w, x1 = (g.end / dur) * w;
       ctx.fillRect(x0, 0, Math.max(1, x1 - x0), h);
@@ -3903,7 +4498,7 @@ function renderAnalysisCurve(){
     }
     ctx.lineTo(w, h);
     ctx.closePath();
-    ctx.fillStyle = 'rgba(85,80,74,.16)';
+    ctx.fillStyle = 'rgba(76,108,138,.16)';
     ctx.fill();
 
     ctx.beginPath();
@@ -3911,7 +4506,7 @@ function renderAnalysisCurve(){
       const x = (i / (n - 1)) * w, y = yOf(db[i]);
       if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
-    ctx.strokeStyle = '#55504A';
+    ctx.strokeStyle = '#4C6C8A';
     ctx.lineWidth = 1;
     ctx.stroke();
 
@@ -3919,7 +4514,7 @@ function renderAnalysisCurve(){
     if (thr != null){
       const ty = yOf(thr);
       ctx.beginPath();
-      ctx.strokeStyle = 'rgba(133,99,24,.75)';
+      ctx.strokeStyle = 'rgba(110,140,168,.75)';
       ctx.setLineDash([3, 3]);
       ctx.moveTo(0, ty); ctx.lineTo(w, ty);
       ctx.stroke();
@@ -3938,7 +4533,7 @@ function renderAnalysisCurve(){
           const y = h - (d[i] / dmax) * (h * 0.55) - 2;
           if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         }
-        ctx.strokeStyle = 'rgba(168,69,46,.55)';
+        ctx.strokeStyle = 'rgba(232,117,143,.55)';
         ctx.lineWidth = 1;
         ctx.stroke();
       }
@@ -3954,14 +4549,14 @@ function renderAnalysisCurve(){
       const y = h - Math.min(1, diffs[i] / ref) * (h - 4) - 2;
       if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
-    ctx.strokeStyle = '#55504A';
+    ctx.strokeStyle = '#4C6C8A';
     ctx.lineWidth = 1;
     ctx.stroke();
 
     if (hiTh != null){
       const ty = h - Math.min(1, hiTh / ref) * (h - 4) - 2;
       ctx.beginPath();
-      ctx.strokeStyle = 'rgba(133,99,24,.75)';
+      ctx.strokeStyle = 'rgba(110,140,168,.75)';
       ctx.setLineDash([3, 3]);
       ctx.moveTo(0, ty); ctx.lineTo(w, ty);
       ctx.stroke();
@@ -4077,7 +4672,7 @@ function renderGrid(){
         <div class="num-tag">#${idx+1}</div>
         <div class="status-tag ${r.status}">${labelOf(r.status)}</div>
         <div class="play-icon">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="#FFFFFF" style="filter:drop-shadow(0 2px 4px rgba(12,9,8,.5))"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="#FFFFFF" style="filter:drop-shadow(0 2px 4px rgba(8,20,32,.5))"><polygon points="6 4 20 12 6 20 6 4"/></svg>
         </div>
       </div>
       <div class="grid-meta">
@@ -4197,7 +4792,7 @@ async function generatePreviewVideo(keeps){
   const overlay = document.createElement('div');
   overlay.className = 'export-overlay';
   overlay.innerHTML = `
-    <div class="processing-spinner"></div>
+    <div class="ball-loader"><i data-ball></i><i data-ball></i><i data-ball></i></div>
     <h3>正在生成集锦预览</h3>
     <p id="export-progress-text">准备中…</p>
     <div class="processing-bar" style="width:320px"><div class="processing-bar-fill" id="export-progress-bar"></div></div>
@@ -4550,6 +5145,8 @@ document.addEventListener('keydown', (e) => {
 setupUpload();
 // 启动时加载历史记录列表（IndexedDB 未就绪时静默跳过，不影响正常使用）
 renderProjectList();
+// 球种图形：setupUpload 里默认点选网球时已渲染一次，这里兜底防止球未出现
+renderBalls();
 
 /* 快捷键面板：全局可用（按钮在顶栏，任何页面都能点开），
    所以绑定在这里而不是 renderBrowser 里。 */
